@@ -219,6 +219,7 @@
     let allGuides = [];
     let heroNamesById = new Map();
 
+    
     // Load all Dota 2 heroes.
     async function loadHeroRoster() {
       const roster = document.getElementById("hero-roster");
@@ -246,34 +247,49 @@
 
         populateEnemyHeroDropdown(heroes);
 
+        // Create a collapsible hero roster.
         roster.replaceChildren();
 
-        const heading = document.createElement("h2");
-        heading.textContent =
-          `All Dota 2 Heroes (${heroes.length})`;
-        roster.appendChild(heading);
+        const details = document.createElement("details");
+        details.style.marginTop = "12px";
 
-        const list = document.createElement("div");
-        list.className = "hero-grid";
+        const summary = document.createElement("summary");
+        summary.textContent = `All Dota 2 Heroes (${heroes.length})`;
+        summary.style.cursor = "pointer";
+        summary.style.fontWeight = "bold";
+        summary.style.padding = "10px";
 
-        heroes
-          .slice()
-          .sort((a, b) =>
-            a.localized_name.localeCompare(b.localized_name)
-          )
-          .forEach(hero => {
-            const card = document.createElement("div");
-            card.className = "hero-card";
-            card.textContent = hero.localized_name;
-            list.appendChild(card);
-          });
+        const heroList = document.createElement("div");
+        heroList.style.display = "grid";
+        heroList.style.gridTemplateColumns =
+          "repeat(auto-fill, minmax(130px, 1fr))";
+        heroList.style.gap = "8px";
+        heroList.style.marginTop = "10px";
 
-        roster.appendChild(list);
+        heroes.forEach(hero => {
+          const heroCard = document.createElement("div");
+          heroCard.textContent =
+            hero.localized_name ||
+            hero.name.replace("npc_dota_hero_", "");
+
+          heroCard.style.padding = "8px";
+          heroCard.style.borderRadius = "8px";
+          heroCard.style.background = "#1e293b";
+          heroCard.style.fontSize = "13px";
+
+          heroList.appendChild(heroCard);
+        });
+
+        details.append(summary, heroList);
+        roster.appendChild(details);
+
       } catch (error) {
         roster.textContent =
           "Unable to load heroes. Please refresh the page.";
+        console.error("Hero roster error:", error);
       }
     }
+
 
     // Fill the enemy hero dropdown.
     function populateEnemyHeroDropdown(heroes) {
@@ -582,6 +598,7 @@ console.log("First matchup record:", matchups[0]);
     }
 
     
+
 function renderGuides() {
   const query = document.getElementById("search").value
     .trim()
@@ -590,6 +607,7 @@ function renderGuides() {
   const lane = document.getElementById("lane").value;
   const rank = document.getElementById("rank").value;
 
+  // Search saved guides.
   const filtered = allGuides.filter(guide => {
     const text = [
       guide.hero_name,
@@ -611,9 +629,16 @@ function renderGuides() {
     );
   });
 
+  // Search all heroes loaded from OpenDota.
+  const heroMatches = query
+    ? [...heroNamesById.entries()].filter(([id, name]) =>
+        name.toLowerCase().includes(query)
+      )
+    : [];
+
   guidesContainer.replaceChildren();
 
-  // Show matching saved guides first.
+  // Display matching saved guides.
   filtered.forEach(guide => {
     const card = document.createElement("article");
     card.className = "guide";
@@ -645,22 +670,58 @@ function renderGuides() {
     guidesContainer.appendChild(card);
   });
 
-  // If no saved guide matches, explain that clearly.
-  if (filtered.length === 0) {
+  // Display matching heroes in compact cards.
+  if (heroMatches.length > 0) {
+    const heading = document.createElement("h2");
+    heading.textContent = `Matching Heroes (${heroMatches.length})`;
+    guidesContainer.appendChild(heading);
+
+    const heroList = document.createElement("div");
+    heroList.style.display = "grid";
+    heroList.style.gridTemplateColumns =
+      "repeat(auto-fill, minmax(150px, 1fr))";
+    heroList.style.gap = "8px";
+
+    heroMatches.forEach(([heroId, heroName]) => {
+      const card = document.createElement("article");
+      card.className = "guide";
+      card.style.padding = "10px";
+
+      const title = document.createElement("strong");
+      title.textContent = heroName;
+
+      const button = document.createElement("button");
+      button.textContent = "Find Counters";
+      button.style.marginTop = "8px";
+
+      button.addEventListener("click", () => {
+        const dropdown = document.getElementById("enemy-hero");
+
+        if (dropdown) {
+          dropdown.value = String(heroId);
+          loadCounterMatchups(heroId);
+        }
+      });
+
+      card.append(title, button);
+      heroList.appendChild(card);
+    });
+
+    guidesContainer.appendChild(heroList);
+  }
+
+  // Show a message when nothing matches.
+  if (filtered.length === 0 && heroMatches.length === 0) {
     const notice = document.createElement("p");
 
-    if (query) {
-      notice.textContent =
-        `No saved guides match "${query}". ` +
-        "Try Find Counters to explore matchup data for a hero.";
-    } else {
-      notice.textContent =
-        "No guides match the selected filters.";
-    }
+    notice.textContent = query
+      ? `No saved guides or heroes found for "${query}".`
+      : "No guides match the selected filters.";
 
     guidesContainer.appendChild(notice);
   }
 }
+
 
     document.getElementById("search")
       .addEventListener("input", renderGuides);
