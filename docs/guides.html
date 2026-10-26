@@ -162,8 +162,11 @@
           guide.patch
         ].filter(Boolean).join(" ").toLowerCase();
 
-        return text.includes(query) &&
-          (!lane || guide.lane === lane);
+        
+return text.includes(query) &&
+  (!lane ||
+    (guide.lane || "").toLowerCase() === lane.toLowerCase());
+
       });
 
       guidesContainer.replaceChildren();
