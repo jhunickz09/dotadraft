@@ -125,31 +125,92 @@
     <a class="back" href="./index.html">← Back to DotaDraft home</a>
   </main>
 
-  <script>
-    const loginTab = document.getElementById("loginTab");
-    const signupTab = document.getElementById("signupTab");
-    const submitButton = document.getElementById("submitButton");
-    const passwordInput = document.getElementById("password");
-    const message = document.getElementById("message");
+  
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = "https://byzcbemjfkhwgyczxpnw.supabase.co/rest/v1/";
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_JCqjOY08FpV8pwfzbFKe0Q_7oI-j01v";
 
-    let mode = "login";
+  const supabaseClient = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+  );
 
-    function setMode(newMode) {
-      mode = newMode;
-      loginTab.classList.toggle("active", mode === "login");
-      signupTab.classList.toggle("active", mode === "signup");
-      submitButton.textContent = mode === "login" ? "Log In" : "Create Account";
-      passwordInput.autocomplete = mode === "login" ? "current-password" : "new-password";
-      message.textContent = "";
+  const loginTab = document.getElementById("loginTab");
+  const signupTab = document.getElementById("signupTab");
+  const submitButton = document.getElementById("submitButton");
+  const passwordInput = document.getElementById("password");
+  const message = document.getElementById("message");
+
+  let mode = "login";
+
+  function setMode(newMode) {
+    mode = newMode;
+    loginTab.classList.toggle("active", mode === "login");
+    signupTab.classList.toggle("active", mode === "signup");
+    submitButton.textContent =
+      mode === "login" ? "Log In" : "Create Account";
+    passwordInput.autocomplete =
+      mode === "login" ? "current-password" : "new-password";
+    message.textContent = "";
+  }
+
+  loginTab.addEventListener("click", () => setMode("login"));
+  signupTab.addEventListener("click", () => setMode("signup"));
+
+  document.getElementById("authForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const email = document.getElementById("email").value.trim();
+    const password = passwordInput.value;
+
+    submitButton.disabled = true;
+    message.textContent = "Please wait...";
+
+    try {
+      if (mode === "signup") {
+        const { data, error } = await supabaseClient.auth.signUp({
+          email,
+          password
+        });
+
+        if (error) throw error;
+
+        message.textContent = data.session
+          ? "Account created! Your access is pending owner approval."
+          : "Signup successful! Check your email to confirm your account. Access is pending owner approval.";
+      } else {
+        const { error } = await supabaseClient.auth.signInWithPassword({
+          email,
+          password
+        });
+
+        if (error) throw error;
+
+        const { data: userData } = await supabaseClient.auth.getUser();
+
+        const { data: profile, error: profileError } = await supabaseClient
+          .from("profiles")
+          .select("status, role")
+          .eq("id", userData.user.id)
+          .single();
+
+        if (profileError) throw profileError;
+
+        if (profile.status === "approved" || profile.role === "admin") {
+          message.textContent = "Login successful! Guide access is approved. The guide page is coming next.";
+        } else {
+          await supabaseClient.auth.signOut();
+          message.textContent = "Your account is pending approval. Please wait for the owner to approve your access.";
+        }
+      }
+    } catch (error) {
+      message.textContent = error.message || "Something went wrong. Please try again.";
+    } finally {
+      submitButton.disabled = false;
     }
+  });
+</script>
 
-    loginTab.addEventListener("click", () => setMode("login"));
-    signupTab.addEventListener("click", () => setMode("signup"));
-
-    document.getElementById("authForm").addEventListener("submit", (event) => {
-      event.preventDefault();
-      message.textContent = "Supabase connection is coming next. Your account has not been created yet.";
-    });
-  </script>
 </body>
 </html>
