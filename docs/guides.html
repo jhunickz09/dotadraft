@@ -75,7 +75,20 @@
     <p id="message">Checking your account...</p>
 
     <section id="library" hidden>
-      <label for="search">Search hero or counter</label>
+      
+<label for="rank">Filter by rank</label>
+<select id="rank">
+  <option value="">All Ranks</option>
+  <option value="Herald">Herald</option>
+  <option value="Guardian">Guardian</option>
+  <option value="Crusader">Crusader</option>
+  <option value="Archon">Archon</option>
+  <option value="Legend">Legend</option>
+  <option value="Ancient">Ancient</option>
+  <option value="Divine">Divine</option>
+  <option value="Immortal">Immortal</option>
+</select>
+
       <input id="search" placeholder="Example: Phantom Lancer">
 
       <label for="lane">Filter by lane</label>
@@ -149,9 +162,12 @@
     }
 
     function renderGuides() {
-      const query = document.getElementById("search").value
-        .trim().toLowerCase();
-      const lane = document.getElementById("lane").value;
+      
+const query = document.getElementById("search").value
+  .trim().toLowerCase();
+const lane = document.getElementById("lane").value;
+const rank = document.getElementById("rank").value;
+
 
       const filtered = allGuides.filter(guide => {
         const text = [
@@ -163,9 +179,13 @@
         ].filter(Boolean).join(" ").toLowerCase();
 
         
+
 return text.includes(query) &&
   (!lane ||
-    (guide.lane || "").toLowerCase() === lane.toLowerCase());
+    (guide.lane || "").toLowerCase() === lane.toLowerCase()) &&
+  (!rank ||
+    (guide.rank_bracket || "").toLowerCase() === rank.toLowerCase());
+
 
       });
 
@@ -209,8 +229,8 @@ return text.includes(query) &&
 
     document.getElementById("search")
       .addEventListener("input", renderGuides);
-    document.getElementById("lane")
-      .addEventListener("change", renderGuides);
+    document.getElementById("rank")
+  .addEventListener("change", renderGuides);
 
     start().catch(() => {
       message.textContent =
