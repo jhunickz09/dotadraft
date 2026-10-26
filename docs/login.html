@@ -1,0 +1,200 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login | DotaDraft</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: #0b1120;
+      color: #f1f5f9;
+      font-family: Arial, sans-serif;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 420px;
+      padding: 32px;
+      background: #151e30;
+      border: 1px solid #2d3a50;
+      border-radius: 16px;
+    }
+
+    h1 { color: #f59e0b; }
+
+    p { color: #a8b3c7; }
+
+    .tabs { display: flex; gap: 8px; }
+
+    button {
+      cursor: pointer;
+      padding: 12px;
+      border: 0;
+      border-radius: 8px;
+      font-weight: bold;
+    }
+
+    .tab {
+      flex: 1;
+      background: #253149;
+      color: white;
+    }
+
+    .tab.active {
+      background: #f59e0b;
+      color: #111827;
+    }
+
+    label {
+      display: block;
+      margin: 16px 0 7px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #3a4962;
+      border-radius: 8px;
+      background: #0b1120;
+      color: white;
+      font-size: 15px;
+    }
+
+    .submit {
+      width: 100%;
+      margin-top: 22px;
+      background: #f59e0b;
+      color: #111827;
+    }
+
+    #message {
+      margin-top: 16px;
+      overflow-wrap: anywhere;
+    }
+
+    .back {
+      display: block;
+      margin-top: 22px;
+      color: #cbd5e1;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>DOTA DRAFT</h1>
+    <p>Sign in to access your drafting guides.</p>
+
+    <div class="tabs">
+      <button type="button" id="loginTab" class="tab active">Log In</button>
+      <button type="button" id="signupTab" class="tab">Sign Up</button>
+    </div>
+
+    <form id="authForm">
+      <label for="email">Email address</label>
+      <input id="email" type="email" autocomplete="email" required>
+
+      <label for="password">Password</label>
+      <input id="password" type="password" minlength="8"
+        autocomplete="current-password" required>
+
+      <button class="submit" id="submitButton" type="submit">Log In</button>
+    </form>
+
+    <p id="message" role="status" aria-live="polite"></p>
+    <a class="back" href="./index.html">← Back to homepage</a>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "https://byzcbemjfkhwgyczxpnw.supabase.co/rest/v1/";
+    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_JCqjOY08FpV8pwfzbFKe0Q_7oI-j01v";
+
+    const db = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_PUBLISHABLE_KEY
+    );
+
+    const loginTab = document.getElementById("loginTab");
+    const signupTab = document.getElementById("signupTab");
+    const submitButton = document.getElementById("submitButton");
+    const passwordInput = document.getElementById("password");
+    const message = document.getElementById("message");
+
+    let mode = "login";
+
+    function setMode(nextMode) {
+      mode = nextMode;
+      loginTab.classList.toggle("active", mode === "login");
+      signupTab.classList.toggle("active", mode === "signup");
+      submitButton.textContent =
+        mode === "login" ? "Log In" : "Create Account";
+      passwordInput.autocomplete =
+        mode === "login" ? "current-password" : "new-password";
+      message.textContent = "";
+    }
+
+    loginTab.addEventListener("click", () => setMode("login"));
+    signupTab.addEventListener("click", () => setMode("signup"));
+
+    document.getElementById("authForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const email = document.getElementById("email").value.trim();
+      const password = passwordInput.value;
+
+      submitButton.disabled = true;
+      message.textContent = "Please wait...";
+
+      try {
+        if (mode === "signup") {
+          const { data, error } = await db.auth.signUp({ email, password });
+          if (error) throw error;
+
+          message.textContent = data.session
+            ? "Account created. Your access is pending owner approval."
+            : "Signup successful. Check your email to confirm your account. Access is pending owner approval.";
+        } else {
+          const { data, error } = await db.auth.signInWithPassword({
+            email, password
+          });
+          if (error) throw error;
+
+          const { data: profile, error: profileError } = await db
+            .from("profiles")
+            .select("status, role")
+            .eq("id", data.user.id)
+            .single();
+
+          if (profileError) {
+            await db.auth.signOut();
+            throw new Error("Could not check your approval status. Please try again.");
+          }
+
+          if (profile.status === "approved" || profile.role === "admin") {
+            message.textContent =
+              "Login successful! Your guide library will be available soon.";
+          } else {
+            await db.auth.signOut();
+            message.textContent =
+              "Your account is pending owner approval.";
+          }
+        }
+      } catch (error) {
+        message.textContent = error.message || "Something went wrong. Please try again.";
+      } finally {
+        submitButton.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
