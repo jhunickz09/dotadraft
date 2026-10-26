@@ -590,6 +590,8 @@ console.log("First matchup record:", matchups[0]);
       const lane = document.getElementById("lane").value;
       const rank = document.getElementById("rank").value;
 
+      console.log("Total saved guides:", allGuides.length);
+
       const filtered = allGuides.filter(guide => {
         const text = [
           guide.hero_name,
