@@ -165,6 +165,8 @@ async function loadHeroRoster() {
     }
 
     const heroes = await response.json();
+    
+    populateEnemyHeroDropdown(heroes);
 
     roster.innerHTML = "";
 
@@ -198,6 +200,29 @@ async function loadHeroRoster() {
       "Unable to load heroes. Please refresh the page.";
   }
 }
+    
+function populateEnemyHeroDropdown(heroes) {
+  const dropdown = document.getElementById("enemy-hero");
+
+  dropdown.replaceChildren();
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Choose a hero";
+  dropdown.appendChild(placeholder);
+
+  heroes
+    .sort((a, b) =>
+      a.localized_name.localeCompare(b.localized_name)
+    )
+    .forEach(hero => {
+      const option = document.createElement("option");
+      option.value = hero.id;
+      option.textContent = hero.localized_name;
+      dropdown.appendChild(option);
+    });
+}
+
 
     
 async function loadHeroStats() {
