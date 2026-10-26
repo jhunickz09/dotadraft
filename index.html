@@ -1,0 +1,211 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DotaDraft | Dota 2 Guides</title>
+  <meta name="description" content="Dota 2 counter-pick guides and professional tournament schedules.">
+  <style>
+    :root {
+      --bg: #101216;
+      --panel: #1b1f25;
+      --text: #f4f5f7;
+      --muted: #a9b0bb;
+      --accent: #e45b45;
+      --border: #303640;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 20px 7%;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo { font-size: 24px; font-weight: 800; }
+    .logo span { color: var(--accent); }
+
+    nav { display: flex; gap: 20px; flex-wrap: wrap; }
+    nav a { color: var(--muted); text-decoration: none; }
+    nav a:hover { color: white; }
+
+    .hero {
+      padding: 85px 7% 65px;
+      background: linear-gradient(120deg, #28202a, #101216 70%);
+    }
+
+    .tag {
+      color: #ff9c88;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    h1 { font-size: clamp(38px, 6vw, 64px); margin: 18px 0; }
+    .hero p { color: var(--muted); max-width: 580px; line-height: 1.7; }
+
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 25px; }
+
+    .btn {
+      display: inline-block;
+      padding: 13px 18px;
+      border-radius: 6px;
+      background: var(--accent);
+      color: white;
+      text-decoration: none;
+      font-weight: bold;
+      border: 1px solid var(--accent);
+      cursor: pointer;
+    }
+
+    .btn.secondary { background: transparent; border-color: var(--border); }
+
+    main { padding: 35px 7% 65px; }
+    .section-head { margin-bottom: 20px; }
+    .section-head p { color: var(--muted); }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 23px;
+    }
+
+    .card h3 { margin-top: 0; }
+    .card p { color: var(--muted); line-height: 1.6; }
+
+    .pill {
+      display: inline-block;
+      background: #352321;
+      color: #ffab99;
+      border-radius: 20px;
+      padding: 5px 10px;
+      font-size: 12px;
+    }
+
+    .notice {
+      margin-top: 22px;
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    footer {
+      padding: 25px 7%;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 600px) {
+      header { align-items: flex-start; flex-direction: column; }
+      nav { gap: 14px; }
+      .hero { padding-top: 55px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">DOTA<span>DRAFT</span></div>
+    <nav>
+      <a href="#guides">Counter Guides</a>
+      <a href="#pro-scene">Pro Scene</a>
+      <a href="#about">About</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <div class="tag">Your Dota 2 companion</div>
+    <h1>Draft smarter.<br>Play better.</h1>
+    <p>
+      Explore hero counter-picks, understand draft matchups,
+      and keep up with professional Dota 2 tournaments —
+      with schedules displayed in Philippine Time.
+    </p>
+    <div class="actions">
+      <a class="btn" href="#guides">Explore Guides</a>
+      <a class="btn secondary" href="#pro-scene">Upcoming Tournaments</a>
+    </div>
+  </section>
+
+  <main>
+    <section id="guides">
+      <div class="section-head">
+        <span class="tag">Improve your draft</span>
+        <h2>Hero Counter Guides</h2>
+        <p>Understand which heroes can challenge your opponent's picks.</p>
+      </div>
+      <div class="cards">
+        <article class="card">
+          <span class="pill">Coming soon</span>
+          <h3>Search Hero Counters</h3>
+          <p>Find possible counters, matchup explanations, and draft suggestions.</p>
+        </article>
+        <article class="card">
+          <span class="pill">Coming soon</span>
+          <h3>Lane Matchups</h3>
+          <p>Explore matchups for mid, carry, offlane, and support roles.</p>
+        </article>
+        <article class="card">
+          <span class="pill">Members only</span>
+          <h3>Detailed Guides</h3>
+          <p>Access the full guide library after your account is approved.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="pro-scene" style="margin-top:55px">
+      <div class="section-head">
+        <span class="tag">Competitive Dota</span>
+        <h2>Professional Scene</h2>
+        <p>Follow tournaments, match schedules, teams, and results.</p>
+      </div>
+      <div class="cards">
+        <article class="card">
+          <h3>Upcoming Matches</h3>
+          <p>Tournament match times will be displayed in Philippine Time (UTC+8).</p>
+        </article>
+        <article class="card">
+          <h3>Tournament Results</h3>
+          <p>Review completed matches and series results as data becomes available.</p>
+        </article>
+      </div>
+      <div class="notice">
+        Tournament schedules and live results are not connected yet. We'll add a data source in a later step.
+      </div>
+    </section>
+
+    <section id="about" style="margin-top:55px">
+      <div class="section-head">
+        <h2>Built for the Dota 2 community</h2>
+        <p>DotaDraft is an independent fan project and is not affiliated with Valve.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    DotaDraft · Independent Dota 2 fan project · All times will use Philippine Time (UTC+8).
+  </footer>
+</body>
+</html>
