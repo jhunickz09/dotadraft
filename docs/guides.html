@@ -1,0 +1,218 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Counter-Pick Guides | DotaDraft</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #0b1120;
+      color: #f1f5f9;
+      font-family: Arial, sans-serif;
+    }
+
+    main {
+      max-width: 900px;
+      margin: auto;
+    }
+
+    h1 { color: #f59e0b; }
+
+    p { color: #a8b3c7; }
+
+    input, select {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border: 1px solid #3a4962;
+      border-radius: 8px;
+      background: #151e30;
+      color: white;
+    }
+
+    .guide {
+      margin-top: 14px;
+      padding: 18px;
+      background: #151e30;
+      border: 1px solid #2d3a50;
+      border-radius: 12px;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 5px 9px;
+      border-radius: 6px;
+      background: #253149;
+      color: #fbbf24;
+      font-size: 13px;
+    }
+
+    a { color: #fbbf24; }
+
+    button {
+      padding: 10px 14px;
+      border: 0;
+      border-radius: 8px;
+      background: #f59e0b;
+      color: #111827;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    #message { margin: 20px 0; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>DOTA DRAFT</h1>
+    <p>Counter-pick guides for smarter drafting.</p>
+
+    <p id="message">Checking your account...</p>
+
+    <section id="library" hidden>
+      <label for="search">Search hero or counter</label>
+      <input id="search" placeholder="Example: Phantom Lancer">
+
+      <label for="lane">Filter by lane</label>
+      <select id="lane">
+        <option value="">All lanes</option>
+        <option value="Carry">Carry</option>
+        <option value="Mid">Mid</option>
+        <option value="Offlane">Offlane</option>
+        <option value="Support">Support</option>
+      </select>
+
+      <div id="guides"></div>
+    </section>
+
+    <p><a href="./index.html">← Back to homepage</a></p>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "https://byzcbemjfkhwgyczxpnw.supabase.co";
+    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_JCqjOY08FpV8pwfzbFKe0Q_7oI-j01v";
+
+    const db = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_PUBLISHABLE_KEY
+    );
+
+    const message = document.getElementById("message");
+    const library = document.getElementById("library");
+    const guidesContainer = document.getElementById("guides");
+
+    let allGuides = [];
+
+    async function start() {
+      const { data: authData, error: authError } =
+        await db.auth.getUser();
+
+      if (authError || !authData.user) {
+        message.textContent = "Please log in to access the guide library.";
+        return;
+      }
+
+      const { data: profile, error: profileError } = await db
+        .from("profiles")
+        .select("status, role")
+        .eq("id", authData.user.id)
+        .single();
+
+      if (profileError || !profile ||
+          (profile.status !== "approved" && profile.role !== "admin")) {
+        message.textContent = "Your account is pending owner approval.";
+        return;
+      }
+
+      message.textContent = "Welcome! Your counter-pick guides are ready.";
+      library.hidden = false;
+
+      const { data, error } = await db
+        .from("hero_guides")
+        .select("id, hero_name, lane, rank_bracket, counter_hero, reason, patch")
+        .order("hero_name");
+
+      if (error) {
+        message.textContent =
+          "We couldn't load the guides. Please try again later.";
+        return;
+      }
+
+      allGuides = data || [];
+      renderGuides();
+    }
+
+    function renderGuides() {
+      const query = document.getElementById("search").value
+        .trim().toLowerCase();
+      const lane = document.getElementById("lane").value;
+
+      const filtered = allGuides.filter(guide => {
+        const text = [
+          guide.hero_name,
+          guide.counter_hero,
+          guide.reason,
+          guide.rank_bracket,
+          guide.patch
+        ].filter(Boolean).join(" ").toLowerCase();
+
+        return text.includes(query) &&
+          (!lane || guide.lane === lane);
+      });
+
+      guidesContainer.replaceChildren();
+
+      if (!filtered.length) {
+        guidesContainer.textContent =
+          "No guides found yet. More counter-pick guides will be added soon.";
+        return;
+      }
+
+      filtered.forEach(guide => {
+        const card = document.createElement("article");
+        card.className = "guide";
+
+        const title = document.createElement("h2");
+        title.textContent = guide.hero_name;
+
+        const counter = document.createElement("p");
+        counter.textContent = "Counter pick: " + guide.counter_hero;
+
+        const details = document.createElement("p");
+        details.textContent = guide.reason || "No explanation added yet.";
+
+        card.append(title, counter, details);
+
+        if (guide.lane || guide.rank_bracket || guide.patch) {
+          const tag = document.createElement("span");
+          tag.className = "tag";
+          tag.textContent = [
+            guide.lane,
+            guide.rank_bracket,
+            guide.patch ? "Patch " + guide.patch : null
+          ].filter(Boolean).join(" • ");
+          card.append(tag);
+        }
+
+        guidesContainer.append(card);
+      });
+    }
+
+    document.getElementById("search")
+      .addEventListener("input", renderGuides);
+    document.getElementById("lane")
+      .addEventListener("change", renderGuides);
+
+    start().catch(() => {
+      message.textContent =
+        "Something went wrong while checking your account.";
+    });
+  </script>
+</body>
+</html>
