@@ -180,6 +180,110 @@ async function loadHeroRoster() {
   }
 }
 
+    
+async function loadHeroStats() {
+  const message = document.getElementById("stats-message");
+  const list = document.getElementById("stats-list");
+
+  message.textContent = "Loading hero statistics...";
+  list.replaceChildren();
+
+  try {
+    const response = await fetch(
+      "https://api.opendota.com/api/heroStats"
+    );
+
+    if (!response.ok) {
+      throw new Error("Statistics request failed");
+    }
+
+    const heroes = await response.json();
+
+    const rankSelect = document.createElement("select");
+    rankSelect.id = "stats-rank";
+
+    const ranks = [
+      { label: "Herald", pick: "1_pick", win: "1_win" },
+      { label: "Guardian", pick: "2_pick", win: "2_win" },
+      { label: "Crusader", pick: "3_pick", win: "3_win" },
+      { label: "Archon", pick: "4_pick", win: "4_win" },
+      { label: "Legend", pick: "5_pick", win: "5_win" },
+      { label: "Ancient", pick: "6_pick", win: "6_win" },
+      { label: "Divine", pick: "7_pick", win: "7_win" },
+      { label: "Immortal", pick: "8_pick", win: "8_win" }
+    ];
+
+    ranks.forEach(rank => {
+      const option = document.createElement("option");
+      option.value = rank.label;
+      option.textContent = rank.label;
+      rankSelect.appendChild(option);
+    });
+
+    list.appendChild(rankSelect);
+
+    const table = document.createElement("table");
+    table.style.width = "100%";
+
+    list.appendChild(table);
+
+    function renderStats() {
+      const rank = ranks.find(
+        item => item.label === rankSelect.value
+      );
+
+      table.replaceChildren();
+
+      const header = document.createElement("tr");
+
+      ["Hero", "Matches", "Win rate"].forEach(label => {
+        const th = document.createElement("th");
+        th.textContent = label;
+        header.appendChild(th);
+      });
+
+      table.appendChild(header);
+
+      const sorted = heroes
+        .filter(hero => Number(hero[rank.pick]) > 0)
+        .map(hero => ({
+          name: hero.localized_name,
+          picks: Number(hero[rank.pick]),
+          wins: Number(hero[rank.win])
+        }))
+        .sort((a, b) =>
+          (b.wins / b.picks) - (a.wins / a.picks)
+        );
+
+      sorted.forEach(hero => {
+        const row = document.createElement("tr");
+        const rate =
+          (hero.wins / hero.picks * 100).toFixed(1) + "%";
+
+        [hero.name, hero.picks.toLocaleString(), rate]
+          .forEach(value => {
+            const cell = document.createElement("td");
+            cell.textContent = value;
+            row.appendChild(cell);
+          });
+
+        table.appendChild(row);
+      });
+
+      message.textContent =
+        `Showing ${sorted.length} heroes for ${rank.label}, sorted by win rate.`;
+    }
+
+    rankSelect.addEventListener("change", renderStats);
+    renderStats();
+
+  } catch (error) {
+    message.textContent =
+      "Unable to load hero statistics. Please refresh the page.";
+  }
+}
+
+
 
     async function start() {
       const { data: authData, error: authError } =
@@ -205,6 +309,7 @@ async function loadHeroRoster() {
       message.textContent = "Welcome! Your counter-pick guides are ready.";
       library.hidden = false;
       loadHeroRoster();
+loadHeroStats();
 
       const { data, error } = await db
         .from("hero_guides")
