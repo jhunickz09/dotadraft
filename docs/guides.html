@@ -303,13 +303,11 @@
       });
     }
 
+    
     // Find potential counters to the selected enemy hero.
     async function loadCounterMatchups(enemyHeroId) {
-      const counterMessage =
-        document.getElementById("counter-message");
-
-      const results =
-        document.getElementById("counter-results");
+      const counterMessage = document.getElementById("counter-message");
+      const results = document.getElementById("counter-results");
 
       results.replaceChildren();
 
@@ -319,58 +317,63 @@
         return;
       }
 
-      counterMessage.textContent =
-        "Loading matchup data...";
+      counterMessage.textContent = "Loading matchup data...";
 
       try {
         const response = await fetch(
-          `https://api.opendota.com/api/heroes/${enemyHeroId}/matchups`
+          `https://api.opendota.com/api/heroes/${Number(enemyHeroId)}/matchups`
         );
 
         if (!response.ok) {
-          throw new Error("Unable to load matchup data");
+          throw new Error(`OpenDota returned status ${response.status}`);
         }
 
         const matchups = await response.json();
 
+        if (!Array.isArray(matchups)) {
+          throw new Error("Unexpected matchup data format");
+        }
+
         const counters = matchups
           .filter(matchup =>
-            matchup.games_played >= 100 &&
-            matchup.hero_id !== Number(enemyHeroId)
+            Number(matchup.games_played) > 0 &&
+            Number(matchup.hero_id) !== Number(enemyHeroId)
           )
-          .map(matchup => ({
-            heroId: Number(matchup.hero_id),
-            games: Number(matchup.games_played),
-            winRate:
-              ((matchup.games_played - matchup.wins) /
-                matchup.games_played) * 100
-          }))
+          .map(matchup => {
+            const games = Number(matchup.games_played);
+            const wins = Number(matchup.wins);
+
+            return {
+              heroId: Number(matchup.hero_id),
+              games,
+              winRate: ((games - wins) / games) * 100
+            };
+          })
+          .filter(counter =>
+            Number.isFinite(counter.winRate) &&
+            Number.isFinite(counter.heroId)
+          )
           .sort((a, b) => b.winRate - a.winRate)
           .slice(0, 10);
 
-        if (!counters.length) {
+        if (counters.length === 0) {
           counterMessage.textContent =
-            "No matchup results are available yet. Please try again later.";
+            `OpenDota responded, but no usable matchup records were found. ` +
+            `Records received: ${matchups.length}. Please try another hero.`;
           return;
         }
 
         counterMessage.textContent =
-          "Showing up to 10 potential counters from overall " +
-          "matchup data. These results are not filtered by rank. " +
-          "Only matchups with at least 100 games are included.";
+          "Showing up to 10 potential counters using overall matchup data. " +
+          "Results are not filtered by rank.";
 
         const wrapper = document.createElement("div");
         wrapper.className = "table-wrap";
 
         const table = document.createElement("table");
-
         const header = document.createElement("tr");
 
-        [
-          "Potential counter",
-          "Matches",
-          "Opponent win rate"
-        ].forEach(label => {
+        ["Potential counter", "Matches", "Opponent win rate"].forEach(label => {
           const th = document.createElement("th");
           th.textContent = label;
           header.appendChild(th);
@@ -383,16 +386,13 @@
 
           const heroCell = document.createElement("td");
           heroCell.textContent =
-            heroNamesById.get(counter.heroId) ||
-            `Hero ${counter.heroId}`;
+            heroNamesById.get(counter.heroId) || `Hero ${counter.heroId}`;
 
           const gamesCell = document.createElement("td");
-          gamesCell.textContent =
-            counter.games.toLocaleString();
+          gamesCell.textContent = counter.games.toLocaleString();
 
           const rateCell = document.createElement("td");
-          rateCell.textContent =
-            counter.winRate.toFixed(1) + "%";
+          rateCell.textContent = `${counter.winRate.toFixed(1)}%`;
 
           row.append(heroCell, gamesCell, rateCell);
           table.appendChild(row);
@@ -402,8 +402,9 @@
         results.appendChild(wrapper);
 
       } catch (error) {
+        console.error("Counter matchup error:", error);
         counterMessage.textContent =
-          "Unable to load matchup data. Please try again later.";
+          "Unable to load matchup data. Please refresh and try again.";
       }
     }
 
