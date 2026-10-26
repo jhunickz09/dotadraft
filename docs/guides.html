@@ -581,84 +581,86 @@ console.log("First matchup record:", matchups[0]);
       renderGuides();
     }
 
-    // Search and filter saved counter-pick guides.
-    function renderGuides() {
-      const query = document.getElementById("search").value
-        .trim()
-        .toLowerCase();
+    
+function renderGuides() {
+  const query = document.getElementById("search").value
+    .trim()
+    .toLowerCase();
 
-      console.log("Search text:", query);
-console.log("Saved guide:", allGuides[0]);
+  const lane = document.getElementById("lane").value;
+  const rank = document.getElementById("rank").value;
 
-      const lane = document.getElementById("lane").value;
-      const rank = document.getElementById("rank").value;
+  const filtered = allGuides.filter(guide => {
+    const text = [
+      guide.hero_name,
+      guide.counter_hero,
+      guide.reason,
+      guide.rank_bracket,
+      guide.patch
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
 
-      console.log("Total saved guides:", allGuides.length);
+    return (
+      text.includes(query) &&
+      (!lane ||
+        (guide.lane || "").toLowerCase() === lane.toLowerCase()) &&
+      (!rank ||
+        (guide.rank_bracket || "").toLowerCase() === rank.toLowerCase())
+    );
+  });
 
-      const filtered = allGuides.filter(guide => {
-        const text = [
-          guide.hero_name,
-          guide.counter_hero,
-          guide.reason,
-          guide.rank_bracket,
-          guide.patch
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
+  guidesContainer.replaceChildren();
 
-        return (
-          text.includes(query) &&
-          (!lane ||
-            (guide.lane || "").toLowerCase() === lane.toLowerCase()) &&
-          (!rank ||
-            (guide.rank_bracket || "").toLowerCase() === rank.toLowerCase())
-        );
-      });
+  // Show matching saved guides first.
+  filtered.forEach(guide => {
+    const card = document.createElement("article");
+    card.className = "guide";
 
-      guidesContainer.replaceChildren();
+    const title = document.createElement("h2");
+    title.textContent = guide.hero_name;
 
-      if (!filtered.length) {
-        guidesContainer.textContent =
-          "No guides found yet. More counter-pick guides will be added soon.";
-        return;
-      }
+    const counter = document.createElement("p");
+    counter.textContent = "Counter pick: " + guide.counter_hero;
 
-      filtered.forEach(guide => {
-        const card = document.createElement("article");
-        card.className = "guide";
+    const details = document.createElement("p");
+    details.textContent =
+      guide.reason || "No explanation added yet.";
 
-        const title = document.createElement("h2");
-        title.textContent = guide.hero_name;
+    card.append(title, counter, details);
 
-        const counter = document.createElement("p");
-        counter.textContent =
-          "Counter pick: " + guide.counter_hero;
+    if (guide.lane || guide.rank_bracket || guide.patch) {
+      const tag = document.createElement("span");
+      tag.className = "tag";
+      tag.textContent = [
+        guide.lane,
+        guide.rank_bracket,
+        guide.patch ? "Patch " + guide.patch : null
+      ].filter(Boolean).join(" • ");
 
-        const details = document.createElement("p");
-        details.textContent =
-          guide.reason || "No explanation added yet.";
-
-        card.append(title, counter, details);
-
-        if (guide.lane || guide.rank_bracket || guide.patch) {
-          const tag = document.createElement("span");
-          tag.className = "tag";
-
-          tag.textContent = [
-            guide.lane,
-            guide.rank_bracket,
-            guide.patch ? "Patch " + guide.patch : null
-          ]
-            .filter(Boolean)
-            .join(" • ");
-
-          card.append(tag);
-        }
-
-        guidesContainer.appendChild(card);
-      });
+      card.append(tag);
     }
+
+    guidesContainer.appendChild(card);
+  });
+
+  // If no saved guide matches, explain that clearly.
+  if (filtered.length === 0) {
+    const notice = document.createElement("p");
+
+    if (query) {
+      notice.textContent =
+        `No saved guides match "${query}". ` +
+        "Try Find Counters to explore matchup data for a hero.";
+    } else {
+      notice.textContent =
+        "No guides match the selected filters.";
+    }
+
+    guidesContainer.appendChild(notice);
+  }
+}
 
     document.getElementById("search")
       .addEventListener("input", renderGuides);
