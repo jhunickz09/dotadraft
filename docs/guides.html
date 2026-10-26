@@ -330,6 +330,10 @@
 
         const matchups = await response.json();
 
+        console.log("Selected enemy hero ID:", enemyHeroId);
+console.log("Matchup records received:", matchups.length);
+console.log("First matchup record:", matchups[0]);
+
         if (!Array.isArray(matchups)) {
           throw new Error("Unexpected matchup data format");
         }
