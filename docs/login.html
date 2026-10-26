@@ -180,10 +180,13 @@
             throw new Error("Could not check your approval status. Please try again.");
           }
 
+         
           if (profile.status === "approved" || profile.role === "admin") {
-            message.textContent =
-              "Login successful! Your guide library will be available soon.";
+            message.textContent = "Login successful! Opening your guides...";
+
+            window.location.href = "./guides.html";
           } else {
+
             await db.auth.signOut();
             message.textContent =
               "Your account is pending owner approval.";
