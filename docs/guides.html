@@ -124,6 +124,57 @@
 
     let allGuides = [];
 
+    
+async function loadHeroRoster() {
+  const roster = document.getElementById("hero-roster");
+
+  roster.textContent = "Loading Dota 2 heroes...";
+
+  try {
+    const response = await fetch(
+      "https://api.opendota.com/api/heroes"
+    );
+
+    if (!response.ok) {
+      throw new Error("Unable to load heroes");
+    }
+
+    const heroes = await response.json();
+
+    roster.innerHTML = "";
+
+    const heading = document.createElement("h2");
+    heading.textContent = `All Dota 2 Heroes (${heroes.length})`;
+    roster.appendChild(heading);
+
+    const list = document.createElement("div");
+    list.style.display = "grid";
+    list.style.gridTemplateColumns =
+      "repeat(auto-fit, minmax(150px, 1fr))";
+    list.style.gap = "10px";
+
+    heroes.forEach(hero => {
+      const card = document.createElement("div");
+
+      card.textContent =
+        hero.localized_name ||
+        hero.name.replace("npc_dota_hero_", "");
+
+      card.style.padding = "10px";
+      card.style.border = "1px solid #444";
+      card.style.borderRadius = "8px";
+
+      list.appendChild(card);
+    });
+
+    roster.appendChild(list);
+  } catch (error) {
+    roster.textContent =
+      "Unable to load heroes. Please refresh the page.";
+  }
+}
+
+
     async function start() {
       const { data: authData, error: authError } =
         await db.auth.getUser();
@@ -147,6 +198,7 @@
 
       message.textContent = "Welcome! Your counter-pick guides are ready.";
       library.hidden = false;
+      loadHeroRoster();
 
       const { data, error } = await db
         .from("hero_guides")
