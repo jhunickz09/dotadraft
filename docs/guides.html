@@ -340,9 +340,9 @@ console.log("First matchup record:", matchups[0]);
 
         const counters = matchups
           .filter(matchup =>
-            Number(matchup.games_played) > 0 &&
-            Number(matchup.hero_id) !== Number(enemyHeroId)
-          )
+  Number(matchup.games_played) >= 100 &&
+  Number(matchup.hero_id) !== Number(enemyHeroId)
+)
           .map(matchup => {
             const games = Number(matchup.games_played);
             const wins = Number(matchup.wins);
