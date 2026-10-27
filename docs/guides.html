@@ -1,8 +1,12 @@
 
+<!-- Load Supabase FIRST -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
   const SUPABASE_URL =
     "https://byzcbemjfkhwgyczxpnw.supabase.co";
 
+  // Keep your existing Supabase publishable key here.
   const SUPABASE_PUBLISHABLE_KEY =
     "sb_publishable_JCqjOY08FpV8pwfzbFKe0Q_7oI-j01v";
 
@@ -20,7 +24,7 @@
   let allGuides = [];
   let heroNamesById = new Map();
 
-  // Load all Dota 2 heroes and create a collapsible roster.
+  // Load all Dota 2 heroes.
   async function loadHeroRoster() {
     const roster = document.getElementById("hero-roster");
     roster.textContent = "Loading Dota 2 heroes...";
@@ -31,7 +35,7 @@
       );
 
       if (!response.ok) {
-        throw new Error("Unable to load heroes");
+        throw new Error("Unable to load heroes.");
       }
 
       const heroes = await response.json();
@@ -45,33 +49,25 @@
       );
 
       populateEnemyHeroDropdown(heroes);
-
-      // Refresh search after heroes have loaded.
       renderGuides();
 
       roster.replaceChildren();
 
       const details = document.createElement("details");
-      details.style.marginTop = "12px";
-
       const summary = document.createElement("summary");
-      summary.textContent = `All Dota 2 Heroes (${heroes.length})`;
+
+      summary.textContent =
+        `All Dota 2 Heroes (${heroes.length})`;
       summary.style.cursor = "pointer";
-      summary.style.fontWeight = "bold";
-      summary.style.padding = "10px";
 
       const heroList = document.createElement("div");
       heroList.className = "hero-grid";
-      heroList.style.marginTop = "10px";
 
       heroes.forEach(hero => {
-        const heroCard = document.createElement("div");
-        heroCard.className = "hero-card";
-        heroCard.textContent =
-          hero.localized_name ||
-          hero.name.replace("npc_dota_hero_", "");
-
-        heroList.appendChild(heroCard);
+        const card = document.createElement("div");
+        card.className = "hero-card";
+        card.textContent = hero.localized_name;
+        heroList.appendChild(card);
       });
 
       details.append(summary, heroList);
@@ -83,9 +79,14 @@
     }
   }
 
-  // Populate the enemy hero dropdown.
+  // Fill the enemy hero dropdown.
   function populateEnemyHeroDropdown(heroes) {
     const dropdown = document.getElementById("enemy-hero");
+
+    if (!dropdown) {
+      console.error('Missing element: "enemy-hero"');
+      return;
+    }
 
     dropdown.replaceChildren();
 
@@ -107,7 +108,7 @@
       });
   }
 
-  // Find potential counters to the selected enemy.
+  // Load counter-matchup data for a selected enemy.
   async function loadCounterMatchups(enemyHeroId) {
     const counterMessage =
       document.getElementById("counter-message");
@@ -130,16 +131,10 @@
       );
 
       if (!response.ok) {
-        throw new Error(
-          `OpenDota returned status ${response.status}`
-        );
+        throw new Error("Unable to load matchup data.");
       }
 
       const matchups = await response.json();
-
-      if (!Array.isArray(matchups)) {
-        throw new Error("Unexpected matchup data format");
-      }
 
       const counters = matchups
         .filter(matchup =>
@@ -158,76 +153,65 @@
               : 0
           };
         })
-        .filter(counter =>
-          Number.isFinite(counter.winRate) &&
-          Number.isFinite(counter.heroId)
-        )
         .sort((a, b) => b.winRate - a.winRate)
         .slice(0, 10);
-
-      if (counters.length === 0) {
-        counterMessage.textContent =
-          "No usable matchup records were found. Try another hero.";
-        return;
-      }
 
       const enemyName =
         heroNamesById.get(Number(enemyHeroId)) || "Selected hero";
 
       counterMessage.textContent =
-        `Potential counters against ${enemyName}. ` +
-        "Rankings use overall matchup data and are not rank-filtered.";
+        `Potential counters against ${enemyName}`;
+
+      if (counters.length === 0) {
+        results.textContent =
+          "No matchup data available for this hero.";
+        return;
+      }
 
       const summary = document.createElement("p");
       summary.textContent =
-        `These results show heroes whose opponents had the highest ` +
-        `win rates in the available matchups against ${enemyName}. ` +
-        "Use the match count to judge how much data supports each result.";
+        "Top 10 potential counters based on opponent win rate " +
+        "in available matchup data. These are statistical suggestions, " +
+        "not guaranteed counters.";
       results.appendChild(summary);
-
-      const wrapper = document.createElement("div");
-      wrapper.className = "table-wrap";
 
       const table = document.createElement("table");
       const header = document.createElement("tr");
 
-      [
-        "Potential counter",
-        "Matches",
-        "Opponent win rate"
-      ].forEach(label => {
-        const th = document.createElement("th");
-        th.textContent = label;
-        header.appendChild(th);
-      });
+      ["Potential Counter", "Matches", "Opponent Win Rate"]
+        .forEach(label => {
+          const th = document.createElement("th");
+          th.textContent = label;
+          header.appendChild(th);
+        });
 
       table.appendChild(header);
 
       counters.forEach(counter => {
         const row = document.createElement("tr");
 
-        const heroCell = document.createElement("td");
-        heroCell.textContent =
+        [
           heroNamesById.get(counter.heroId) ||
-          `Hero ${counter.heroId}`;
+            `Hero ${counter.heroId}`,
+          counter.games.toLocaleString(),
+          `${counter.winRate.toFixed(1)}%`
+        ].forEach(value => {
+          const cell = document.createElement("td");
+          cell.textContent = value;
+          row.appendChild(cell);
+        });
 
-        const gamesCell = document.createElement("td");
-        gamesCell.textContent = counter.games.toLocaleString();
-
-        const rateCell = document.createElement("td");
-        rateCell.textContent =
-          `${counter.winRate.toFixed(1)}%`;
-
-        row.append(heroCell, gamesCell, rateCell);
         table.appendChild(row);
       });
 
+      const wrapper = document.createElement("div");
+      wrapper.className = "table-wrap";
       wrapper.appendChild(table);
       results.appendChild(wrapper);
     } catch (error) {
       console.error("Counter matchup error:", error);
       counterMessage.textContent =
-        "Unable to load matchup data. Please refresh and try again.";
+        "Unable to load matchup data. Please try again.";
     }
   }
 
@@ -235,10 +219,13 @@
   async function loadHeroStats() {
     const statsMessage =
       document.getElementById("stats-message");
-    const list = document.getElementById("stats-list");
+    const statsList =
+      document.getElementById("stats-list");
+
+    if (!statsMessage || !statsList) return;
 
     statsMessage.textContent = "Loading hero statistics...";
-    list.replaceChildren();
+    statsList.replaceChildren();
 
     try {
       const response = await fetch(
@@ -246,7 +233,7 @@
       );
 
       if (!response.ok) {
-        throw new Error("Statistics request failed");
+        throw new Error("Unable to load hero statistics.");
       }
 
       const heroes = await response.json();
@@ -262,32 +249,26 @@
         { label: "Immortal", pick: "8_pick", win: "8_win" }
       ];
 
-      const rankSelect = document.createElement("select");
-      rankSelect.id = "stats-rank";
-      rankSelect.setAttribute(
-        "aria-label",
-        "Choose rank for hero statistics"
-      );
+      const select = document.createElement("select");
+      select.setAttribute("aria-label", "Choose rank");
 
       ranks.forEach(rank => {
         const option = document.createElement("option");
         option.value = rank.label;
         option.textContent = rank.label;
-        rankSelect.appendChild(option);
+        select.appendChild(option);
       });
 
-      list.appendChild(rankSelect);
-
+      const table = document.createElement("table");
       const wrapper = document.createElement("div");
       wrapper.className = "table-wrap";
-
-      const table = document.createElement("table");
       wrapper.appendChild(table);
-      list.appendChild(wrapper);
+
+      statsList.append(select, wrapper);
 
       function renderStats() {
         const rank = ranks.find(
-          item => item.label === rankSelect.value
+          item => item.label === select.value
         );
 
         if (!rank) return;
@@ -296,7 +277,7 @@
 
         const header = document.createElement("tr");
 
-        ["Hero", "Matches", "Win rate"].forEach(label => {
+        ["Hero", "Matches", "Win Rate"].forEach(label => {
           const th = document.createElement("th");
           th.textContent = label;
           header.appendChild(th);
@@ -317,14 +298,13 @@
 
         sorted.forEach(hero => {
           const row = document.createElement("tr");
-
-          const rate =
+          const winRate =
             (hero.wins / hero.picks * 100).toFixed(1) + "%";
 
           [
             hero.name,
             hero.picks.toLocaleString(),
-            rate
+            winRate
           ].forEach(value => {
             const cell = document.createElement("td");
             cell.textContent = value;
@@ -339,17 +319,29 @@
           "sorted by win rate.";
       }
 
-      rankSelect.addEventListener("change", renderStats);
+      select.addEventListener("change", renderStats);
       renderStats();
     } catch (error) {
       console.error("Hero statistics error:", error);
       statsMessage.textContent =
-        "Unable to load hero statistics. Please refresh the page.";
+        "Unable to load hero statistics.";
     }
   }
 
-  // Check login and account approval.
+  // Check the user's login and approval status.
   async function start() {
+    if (
+      !message ||
+      !library ||
+      !guidesContainer ||
+      !heroSearchResults
+    ) {
+      console.error(
+        "A required HTML element is missing. Check the IDs in guides.html."
+      );
+      return;
+    }
+
     const { data: authData, error: authError } =
       await db.auth.getUser();
 
@@ -368,7 +360,10 @@
     if (
       profileError ||
       !profile ||
-      (profile.status !== "approved" && profile.role !== "admin")
+      (
+        profile.status !== "approved" &&
+        profile.role !== "admin"
+      )
     ) {
       message.textContent =
         "Your account is pending owner approval.";
@@ -380,11 +375,11 @@
 
     library.hidden = false;
 
-    // Load heroes and statistics.
+    // Load hero information.
     loadHeroRoster();
     loadHeroStats();
 
-    // Load saved guides once.
+    // Load saved guides from Supabase.
     const { data, error } = await db
       .from("hero_guides")
       .select(
@@ -395,7 +390,7 @@
     if (error) {
       console.error("Guide loading error:", error);
       message.textContent =
-        "We couldn't load the guides. Please try again later.";
+        "Unable to load guides. Please try again later.";
       return;
     }
 
@@ -403,20 +398,25 @@
     renderGuides();
   }
 
-  // Search saved guides and all Dota 2 heroes.
+  // Render matching heroes and saved guides without duplicates.
   function renderGuides() {
-    const query = document.getElementById("search").value
-      .trim()
-      .toLowerCase();
+    const searchInput = document.getElementById("search");
+    const laneInput = document.getElementById("lane");
+    const rankInput = document.getElementById("rank");
 
-    const lane = document.getElementById("lane").value;
-    const rank = document.getElementById("rank").value;
+    if (!searchInput || !laneInput || !rankInput) {
+      console.error("Search or filter elements are missing.");
+      return;
+    }
 
-    // Clear both containers before rendering.
+    const query = searchInput.value.trim().toLowerCase();
+    const lane = laneInput.value;
+    const rank = rankInput.value;
+
+    // Clear both areas every time the user searches.
     heroSearchResults.replaceChildren();
     guidesContainer.replaceChildren();
 
-    // Filter saved guides.
     const filtered = allGuides.filter(guide => {
       const text = [
         guide.hero_name,
@@ -438,14 +438,13 @@
       );
     });
 
-    // Search the complete hero roster.
     const heroMatches = query
       ? [...heroNamesById.entries()].filter(([id, name]) =>
           name.toLowerCase().includes(query)
         )
       : [];
 
-    // Show matching heroes in the dedicated search area.
+    // Show hero search results near the top.
     if (query && heroMatches.length > 0) {
       const heading = document.createElement("h2");
       heading.textContent =
@@ -479,7 +478,7 @@
             loadCounterMatchups(heroId);
 
             document.getElementById("counter-finder")
-              .scrollIntoView({
+              ?.scrollIntoView({
                 behavior: "smooth",
                 block: "start"
               });
@@ -493,7 +492,7 @@
       heroSearchResults.appendChild(heroList);
     }
 
-    // Show saved guides only once.
+    // Show each matching saved guide once.
     filtered.forEach(guide => {
       const card = document.createElement("article");
       card.className = "guide";
@@ -502,8 +501,7 @@
       title.textContent = guide.hero_name;
 
       const counter = document.createElement("p");
-      counter.textContent =
-        "Counter pick: " + guide.counter_hero;
+      counter.textContent = "Counter pick: " + guide.counter_hero;
 
       const details = document.createElement("p");
       details.textContent =
@@ -514,6 +512,7 @@
       if (guide.lane || guide.rank_bracket || guide.patch) {
         const tag = document.createElement("span");
         tag.className = "tag";
+
         tag.textContent = [
           guide.lane,
           guide.rank_bracket,
@@ -526,7 +525,6 @@
       guidesContainer.appendChild(card);
     });
 
-    // Display a useful message if nothing matched.
     if (query && heroMatches.length === 0 && filtered.length === 0) {
       const notice = document.createElement("p");
       notice.textContent =
@@ -544,18 +542,21 @@
 
   // Connect search and filters.
   document.getElementById("search")
-    .addEventListener("input", renderGuides);
+    ?.addEventListener("input", renderGuides);
 
   document.getElementById("rank")
-    .addEventListener("change", renderGuides);
+    ?.addEventListener("change", renderGuides);
 
   document.getElementById("lane")
-    .addEventListener("change", renderGuides);
+    ?.addEventListener("change", renderGuides);
 
-  // Run the application.
+  // Handle startup errors without leaving a blank page.
   start().catch(error => {
     console.error("Startup error:", error);
-    message.textContent =
-      "Something went wrong while checking your account.";
+
+    if (message) {
+      message.textContent =
+        "Something went wrong. Open the browser Console for details.";
+    }
   });
 </script>
