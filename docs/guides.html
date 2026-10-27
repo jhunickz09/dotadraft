@@ -1,32 +1,53 @@
 
-<!-- Load Supabase FIRST -->
+<!-- Supabase library must load before the main script -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
+(() => {
+  "use strict";
+
   const SUPABASE_URL =
     "https://byzcbemjfkhwgyczxpnw.supabase.co";
 
-  // Keep your existing Supabase publishable key here.
   const SUPABASE_PUBLISHABLE_KEY =
     "sb_publishable_JCqjOY08FpV8pwfzbFKe0Q_7oI-j01v";
+
+  if (!window.supabase?.createClient) {
+    console.error("Supabase library did not load.");
+    return;
+  }
 
   const db = window.supabase.createClient(
     SUPABASE_URL,
     SUPABASE_PUBLISHABLE_KEY
   );
 
-  const message = document.getElementById("message");
-  const library = document.getElementById("library");
-  const guidesContainer = document.getElementById("guides");
-  const heroSearchResults =
-    document.getElementById("hero-search-results");
+  const get = id => document.getElementById(id);
+
+  const message = get("message");
+
+  // Support either library ID used in the HTML.
+  const library = get("library") || get("guide-library");
+
+  const guidesContainer = get("guides");
+  const heroSearchResults = get("hero-search-results");
 
   let allGuides = [];
   let heroNamesById = new Map();
 
-  // Load all Dota 2 heroes.
+  function showMessage(text) {
+    if (message) message.textContent = text;
+  }
+
+  // Load the Dota 2 hero roster.
   async function loadHeroRoster() {
-    const roster = document.getElementById("hero-roster");
+    const roster = get("hero-roster");
+
+    if (!roster) {
+      console.error('Missing HTML element: hero-roster');
+      return;
+    }
+
     roster.textContent = "Loading Dota 2 heroes...";
 
     try {
@@ -35,7 +56,7 @@
       );
 
       if (!response.ok) {
-        throw new Error("Unable to load heroes.");
+        throw new Error(`OpenDota error: ${response.status}`);
       }
 
       const heroes = await response.json();
@@ -49,7 +70,6 @@
       );
 
       populateEnemyHeroDropdown(heroes);
-      renderGuides();
 
       roster.replaceChildren();
 
@@ -58,7 +78,6 @@
 
       summary.textContent =
         `All Dota 2 Heroes (${heroes.length})`;
-      summary.style.cursor = "pointer";
 
       const heroList = document.createElement("div");
       heroList.className = "hero-grid";
@@ -72,19 +91,19 @@
 
       details.append(summary, heroList);
       roster.appendChild(details);
+
+      renderGuides();
     } catch (error) {
       console.error("Hero roster error:", error);
-      roster.textContent =
-        "Unable to load heroes. Please refresh the page.";
+      roster.textContent = "Unable to load the hero roster.";
     }
   }
 
-  // Fill the enemy hero dropdown.
   function populateEnemyHeroDropdown(heroes) {
-    const dropdown = document.getElementById("enemy-hero");
+    const dropdown = get("enemy-hero");
 
     if (!dropdown) {
-      console.error('Missing element: "enemy-hero"');
+      console.error('Missing HTML element: enemy-hero');
       return;
     }
 
@@ -106,14 +125,23 @@
         option.textContent = hero.localized_name;
         dropdown.appendChild(option);
       });
+
+    dropdown.addEventListener("change", () => {
+      loadCounterMatchups(dropdown.value);
+    });
   }
 
-  // Load counter-matchup data for a selected enemy.
+  // Show the top 10 potential counters for a selected enemy.
   async function loadCounterMatchups(enemyHeroId) {
-    const counterMessage =
-      document.getElementById("counter-message");
-    const results =
-      document.getElementById("counter-results");
+    const counterMessage = get("counter-message");
+    const results = get("counter-results");
+
+    if (!results || !counterMessage) {
+      console.error(
+        "Missing counter-message or counter-results HTML element."
+      );
+      return;
+    }
 
     results.replaceChildren();
 
@@ -131,24 +159,24 @@
       );
 
       if (!response.ok) {
-        throw new Error("Unable to load matchup data.");
+        throw new Error(`OpenDota error: ${response.status}`);
       }
 
       const matchups = await response.json();
 
       const counters = matchups
-        .filter(matchup =>
-          Number(matchup.games_played) >= 100 &&
-          Number(matchup.hero_id) !== Number(enemyHeroId)
+        .filter(item =>
+          Number(item.games_played) >= 100 &&
+          Number(item.hero_id) !== Number(enemyHeroId)
         )
-        .map(matchup => {
-          const games = Number(matchup.games_played);
-          const wins = Number(matchup.wins);
+        .map(item => {
+          const games = Number(item.games_played);
+          const wins = Number(item.wins);
 
           return {
-            heroId: Number(matchup.hero_id),
+            heroId: Number(item.hero_id),
             games,
-            winRate: games > 0
+            winRate: games
               ? ((games - wins) / games) * 100
               : 0
           };
@@ -162,18 +190,17 @@
       counterMessage.textContent =
         `Potential counters against ${enemyName}`;
 
-      if (counters.length === 0) {
-        results.textContent =
-          "No matchup data available for this hero.";
-        return;
-      }
-
       const summary = document.createElement("p");
       summary.textContent =
-        "Top 10 potential counters based on opponent win rate " +
-        "in available matchup data. These are statistical suggestions, " +
-        "not guaranteed counters.";
+        "These are statistical matchup suggestions, not guaranteed counters.";
       results.appendChild(summary);
+
+      if (!counters.length) {
+        const notice = document.createElement("p");
+        notice.textContent = "No matchup results found.";
+        results.appendChild(notice);
+        return;
+      }
 
       const table = document.createElement("table");
       const header = document.createElement("tr");
@@ -187,15 +214,16 @@
 
       table.appendChild(header);
 
-      counters.forEach(counter => {
+      counters.forEach(item => {
         const row = document.createElement("tr");
 
-        [
-          heroNamesById.get(counter.heroId) ||
-            `Hero ${counter.heroId}`,
-          counter.games.toLocaleString(),
-          `${counter.winRate.toFixed(1)}%`
-        ].forEach(value => {
+        const values = [
+          heroNamesById.get(item.heroId) || `Hero ${item.heroId}`,
+          item.games.toLocaleString(),
+          `${item.winRate.toFixed(1)}%`
+        ];
+
+        values.forEach(value => {
           const cell = document.createElement("td");
           cell.textContent = value;
           row.appendChild(cell);
@@ -217,12 +245,15 @@
 
   // Load hero statistics by rank.
   async function loadHeroStats() {
-    const statsMessage =
-      document.getElementById("stats-message");
-    const statsList =
-      document.getElementById("stats-list");
+    const statsMessage = get("stats-message");
+    const statsList = get("stats-list");
 
-    if (!statsMessage || !statsList) return;
+    if (!statsMessage || !statsList) {
+      console.warn(
+        "Hero statistics skipped: stats-message or stats-list is missing."
+      );
+      return;
+    }
 
     statsMessage.textContent = "Loading hero statistics...";
     statsList.replaceChildren();
@@ -233,7 +264,7 @@
       );
 
       if (!response.ok) {
-        throw new Error("Unable to load hero statistics.");
+        throw new Error(`OpenDota error: ${response.status}`);
       }
 
       const heroes = await response.json();
@@ -285,7 +316,7 @@
 
         table.appendChild(header);
 
-        const sorted = heroes
+        heroes
           .filter(hero => Number(hero[rank.pick]) > 0)
           .map(hero => ({
             name: hero.localized_name,
@@ -294,29 +325,25 @@
           }))
           .sort((a, b) =>
             (b.wins / b.picks) - (a.wins / a.picks)
-          );
+          )
+          .forEach(hero => {
+            const row = document.createElement("tr");
 
-        sorted.forEach(hero => {
-          const row = document.createElement("tr");
-          const winRate =
-            (hero.wins / hero.picks * 100).toFixed(1) + "%";
+            [
+              hero.name,
+              hero.picks.toLocaleString(),
+              `${(hero.wins / hero.picks * 100).toFixed(1)}%`
+            ].forEach(value => {
+              const cell = document.createElement("td");
+              cell.textContent = value;
+              row.appendChild(cell);
+            });
 
-          [
-            hero.name,
-            hero.picks.toLocaleString(),
-            winRate
-          ].forEach(value => {
-            const cell = document.createElement("td");
-            cell.textContent = value;
-            row.appendChild(cell);
+            table.appendChild(row);
           });
 
-          table.appendChild(row);
-        });
-
         statsMessage.textContent =
-          `Showing ${sorted.length} heroes for ${rank.label}, ` +
-          "sorted by win rate.";
+          `Showing hero statistics for ${rank.label}, sorted by win rate.`;
       }
 
       select.addEventListener("change", renderStats);
@@ -328,84 +355,23 @@
     }
   }
 
-  // Check the user's login and approval status.
-  async function start() {
-    if (
-      !message ||
-      !library ||
-      !guidesContainer ||
-      !heroSearchResults
-    ) {
+  // Search saved guides and Dota 2 heroes.
+  function renderGuides() {
+    if (!guidesContainer || !heroSearchResults) {
       console.error(
-        "A required HTML element is missing. Check the IDs in guides.html."
+        "Missing guides or hero-search-results. Check those IDs in your HTML."
       );
       return;
     }
 
-    const { data: authData, error: authError } =
-      await db.auth.getUser();
-
-    if (authError || !authData.user) {
-      message.textContent =
-        "Please log in to access the guide library.";
-      return;
-    }
-
-    const { data: profile, error: profileError } = await db
-      .from("profiles")
-      .select("status, role")
-      .eq("id", authData.user.id)
-      .single();
-
-    if (
-      profileError ||
-      !profile ||
-      (
-        profile.status !== "approved" &&
-        profile.role !== "admin"
-      )
-    ) {
-      message.textContent =
-        "Your account is pending owner approval.";
-      return;
-    }
-
-    message.textContent =
-      "Welcome! Your counter-pick guides are ready.";
-
-    library.hidden = false;
-
-    // Load hero information.
-    loadHeroRoster();
-    loadHeroStats();
-
-    // Load saved guides from Supabase.
-    const { data, error } = await db
-      .from("hero_guides")
-      .select(
-        "id, hero_name, lane, rank_bracket, counter_hero, reason, patch"
-      )
-      .order("hero_name");
-
-    if (error) {
-      console.error("Guide loading error:", error);
-      message.textContent =
-        "Unable to load guides. Please try again later.";
-      return;
-    }
-
-    allGuides = data || [];
-    renderGuides();
-  }
-
-  // Render matching heroes and saved guides without duplicates.
-  function renderGuides() {
-    const searchInput = document.getElementById("search");
-    const laneInput = document.getElementById("lane");
-    const rankInput = document.getElementById("rank");
+    const searchInput = get("search");
+    const laneInput = get("lane");
+    const rankInput = get("rank");
 
     if (!searchInput || !laneInput || !rankInput) {
-      console.error("Search or filter elements are missing.");
+      console.error(
+        "Missing search, lane, or rank control. Check the HTML IDs."
+      );
       return;
     }
 
@@ -413,9 +379,9 @@
     const lane = laneInput.value;
     const rank = rankInput.value;
 
-    // Clear both areas every time the user searches.
-    heroSearchResults.replaceChildren();
+    // Clear old cards to prevent duplicates.
     guidesContainer.replaceChildren();
+    heroSearchResults.replaceChildren();
 
     const filtered = allGuides.filter(guide => {
       const text = [
@@ -444,8 +410,7 @@
         )
       : [];
 
-    // Show hero search results near the top.
-    if (query && heroMatches.length > 0) {
+    if (query && heroMatches.length) {
       const heading = document.createElement("h2");
       heading.textContent =
         `Matching Heroes (${heroMatches.length})`;
@@ -460,28 +425,24 @@
       heroMatches.forEach(([heroId, heroName]) => {
         const card = document.createElement("article");
         card.className = "guide";
-        card.style.padding = "10px";
 
         const title = document.createElement("strong");
         title.textContent = heroName;
 
         const button = document.createElement("button");
         button.textContent = "Find Counters";
-        button.style.display = "block";
-        button.style.marginTop = "8px";
 
         button.addEventListener("click", () => {
-          const dropdown = document.getElementById("enemy-hero");
+          const dropdown = get("enemy-hero");
 
           if (dropdown) {
             dropdown.value = String(heroId);
             loadCounterMatchups(heroId);
 
-            document.getElementById("counter-finder")
-              ?.scrollIntoView({
-                behavior: "smooth",
-                block: "start"
-              });
+            get("counter-finder")?.scrollIntoView({
+              behavior: "smooth",
+              block: "start"
+            });
           }
         });
 
@@ -492,7 +453,6 @@
       heroSearchResults.appendChild(heroList);
     }
 
-    // Show each matching saved guide once.
     filtered.forEach(guide => {
       const card = document.createElement("article");
       card.className = "guide";
@@ -503,16 +463,15 @@
       const counter = document.createElement("p");
       counter.textContent = "Counter pick: " + guide.counter_hero;
 
-      const details = document.createElement("p");
-      details.textContent =
+      const reason = document.createElement("p");
+      reason.textContent =
         guide.reason || "No explanation added yet.";
 
-      card.append(title, counter, details);
+      card.append(title, counter, reason);
 
       if (guide.lane || guide.rank_bracket || guide.patch) {
         const tag = document.createElement("span");
         tag.className = "tag";
-
         tag.textContent = [
           guide.lane,
           guide.rank_bracket,
@@ -525,14 +484,14 @@
       guidesContainer.appendChild(card);
     });
 
-    if (query && heroMatches.length === 0 && filtered.length === 0) {
+    if (query && !heroMatches.length && !filtered.length) {
       const notice = document.createElement("p");
       notice.textContent =
         `No saved guides or heroes found for "${query}".`;
       heroSearchResults.appendChild(notice);
     }
 
-    if (!query && filtered.length === 0) {
+    if (!query && !filtered.length) {
       const notice = document.createElement("p");
       notice.textContent =
         "No guides match the selected filters.";
@@ -540,23 +499,77 @@
     }
   }
 
-  // Connect search and filters.
-  document.getElementById("search")
-    ?.addEventListener("input", renderGuides);
+  // Start the application.
+  async function start() {
+    const missing = [];
 
-  document.getElementById("rank")
-    ?.addEventListener("change", renderGuides);
+    if (!message) missing.push("message");
+    if (!library) missing.push("library or guide-library");
+    if (!guidesContainer) missing.push("guides");
+    if (!heroSearchResults) missing.push("hero-search-results");
 
-  document.getElementById("lane")
-    ?.addEventListener("change", renderGuides);
-
-  // Handle startup errors without leaving a blank page.
-  start().catch(error => {
-    console.error("Startup error:", error);
-
-    if (message) {
-      message.textContent =
-        "Something went wrong. Open the browser Console for details.";
+    if (missing.length) {
+      console.error("Missing HTML elements:", missing.join(", "));
+      showMessage("Page setup error. Missing: " + missing.join(", "));
+      return;
     }
+
+    const { data: authData, error: authError } =
+      await db.auth.getUser();
+
+    if (authError || !authData.user) {
+      showMessage("Please log in to access the guide library.");
+      return;
+    }
+
+    const { data: profile, error: profileError } = await db
+      .from("profiles")
+      .select("status, role")
+      .eq("id", authData.user.id)
+      .single();
+
+    if (
+      profileError ||
+      !profile ||
+      (profile.status !== "approved" && profile.role !== "admin")
+    ) {
+      showMessage("Your account is pending owner approval.");
+      return;
+    }
+
+    showMessage("Welcome! Your counter-pick guides are ready.");
+    library.hidden = false;
+
+    // Load public Dota 2 data.
+    loadHeroRoster();
+    loadHeroStats();
+
+    // Load the saved guides.
+    const { data, error } = await db
+      .from("hero_guides")
+      .select(
+        "id, hero_name, lane, rank_bracket, counter_hero, reason, patch"
+      )
+      .order("hero_name");
+
+    if (error) {
+      console.error("Guide loading error:", error);
+      showMessage("Unable to load guides. Please try again later.");
+      return;
+    }
+
+    allGuides = data || [];
+    renderGuides();
+  }
+
+  // Attach listeners safely.
+  get("search")?.addEventListener("input", renderGuides);
+  get("rank")?.addEventListener("change", renderGuides);
+  get("lane")?.addEventListener("change", renderGuides);
+
+  start().catch(error => {
+    console.error("Application startup error:", error);
+    showMessage("Something went wrong. Check the browser Console.");
   });
+})();
 </script>
