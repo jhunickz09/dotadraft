@@ -188,12 +188,11 @@
 
       <section id="hero-roster"></section>
 
-      <section id="guide-library">
-        <h2>Counter-Pick Guides</h2>
-        <div id="guides"></div>
-      </section>
-
-    </section>
+     <section id="guide-library">
+  <h2>Counter-Pick Guides</h2>
+  <div id="hero-search-results"></div>
+  <div id="guides"></div>
+</section>
 
     <p><a href="./index.html">← Back to homepage</a></p>
   </main>
@@ -638,7 +637,8 @@ function renderGuides() {
       )
     : [];
 
-  guidesContainer.replaceChildren();
+  const heroSearchResults = document.getElementById("hero-search-results");
+heroSearchResults.replaceChildren();
 
   // Display matching saved guides.
   filtered.forEach(guide => {
@@ -676,7 +676,7 @@ function renderGuides() {
   if (heroMatches.length > 0) {
     const heading = document.createElement("h2");
     heading.textContent = `Matching Heroes (${heroMatches.length})`;
-    guidesContainer.appendChild(heading);
+    heroSearchResults.appendChild(heading);
 
     const heroList = document.createElement("div");
     heroList.style.display = "grid";
@@ -709,7 +709,7 @@ function renderGuides() {
       heroList.appendChild(card);
     });
 
-    guidesContainer.appendChild(heroList);
+    heroSearchResults.appendChild(heroList);
   }
 
   // Show a message when nothing matches.
@@ -720,7 +720,7 @@ function renderGuides() {
       ? `No saved guides or heroes found for "${query}".`
       : "No guides match the selected filters.";
 
-    guidesContainer.appendChild(notice);
+    heroSearchResults.appendChild(notice);
   }
 }
 
