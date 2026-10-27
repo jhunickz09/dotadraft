@@ -1,400 +1,302 @@
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Counter-Pick Guides | DotaDraft</title>
+<script>
+  const SUPABASE_URL =
+    "https://byzcbemjfkhwgyczxpnw.supabase.co";
 
-  <style>
-    * {
-      box-sizing: border-box;
-    }
+  const SUPABASE_PUBLISHABLE_KEY =
+    "sb_publishable_JCqjOY08FpV8pwfzbFKe0Q_7oI-j01v";
 
-    body {
-      margin: 0;
-      padding: 24px;
-      background: #0b1120;
-      color: #f1f5f9;
-      font-family: Arial, sans-serif;
-    }
+  const db = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+  );
 
-    main {
-      max-width: 900px;
-      margin: auto;
-    }
+  const message = document.getElementById("message");
+  const library = document.getElementById("library");
+  const guidesContainer = document.getElementById("guides");
+  const heroSearchResults =
+    document.getElementById("hero-search-results");
 
-    h1 {
-      color: #f59e0b;
-    }
+  let allGuides = [];
+  let heroNamesById = new Map();
 
-    p {
-      color: #a8b3c7;
-    }
+  // Load all Dota 2 heroes and create a collapsible roster.
+  async function loadHeroRoster() {
+    const roster = document.getElementById("hero-roster");
+    roster.textContent = "Loading Dota 2 heroes...";
 
-    input, select {
-      width: 100%;
-      padding: 12px;
-      margin: 8px 0;
-      border: 1px solid #3a4962;
-      border-radius: 8px;
-      background: #151e30;
-      color: white;
-    }
+    try {
+      const response = await fetch(
+        "https://api.opendota.com/api/heroes"
+      );
 
-    button {
-      padding: 10px 14px;
-      border: 0;
-      border-radius: 8px;
-      background: #f59e0b;
-      color: #111827;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    section {
-      margin-top: 24px;
-    }
-
-    .guide {
-      margin-top: 14px;
-      padding: 18px;
-      background: #151e30;
-      border: 1px solid #2d3a50;
-      border-radius: 12px;
-    }
-
-    .tag {
-      display: inline-block;
-      padding: 5px 9px;
-      border-radius: 6px;
-      background: #253149;
-      color: #fbbf24;
-      font-size: 13px;
-    }
-
-    a {
-      color: #fbbf24;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 16px;
-      font-size: 14px;
-    }
-
-    th, td {
-      padding: 10px 8px;
-      border-bottom: 1px solid #344258;
-      text-align: left;
-    }
-
-    th {
-      color: #fbbf24;
-    }
-
-    #hero-roster {
-      margin-top: 24px;
-    }
-
-    .hero-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 10px;
-    }
-
-    .hero-card {
-      padding: 10px;
-      border: 1px solid #344258;
-      border-radius: 8px;
-      background: #151e30;
-    }
-
-    #message {
-      margin: 20px 0;
-    }
-
-    .table-wrap {
-      overflow-x: auto;
-    }
-  </style>
-</head>
-
-<body>
-  <main>
-    <h1>DOTA DRAFT</h1>
-    <p>Counter-pick guides for smarter drafting.</p>
-
-    <p id="message">Checking your account...</p>
-
-    <section id="library" hidden>
-
-      <section id="guide-filters">
-        <label for="rank">Filter guides by rank</label>
-        <select id="rank">
-          <option value="">All Ranks</option>
-          <option value="Herald">Herald</option>
-          <option value="Guardian">Guardian</option>
-          <option value="Crusader">Crusader</option>
-          <option value="Archon">Archon</option>
-          <option value="Legend">Legend</option>
-          <option value="Ancient">Ancient</option>
-          <option value="Divine">Divine</option>
-          <option value="Immortal">Immortal</option>
-        </select>
-
-        <input
-          id="search"
-          placeholder="Search a hero or counter"
-        >
-
-        <label for="lane">Filter guides by lane</label>
-        <select id="lane">
-          <option value="">All lanes</option>
-          <option value="Carry">Carry</option>
-          <option value="Mid">Mid</option>
-          <option value="Offlane">Offlane</option>
-          <option value="Support">Support</option>
-        </select>
-      </section>
-
-      <section id="counter-finder">
-        <h2>Find Counters</h2>
-        <p>
-          Choose an enemy hero to find potential counters
-          based on overall matchup statistics.
-        </p>
-
-        <label for="enemy-hero">Choose an enemy hero</label>
-        <select id="enemy-hero">
-          <option value="">Choose a hero</option>
-        </select>
-
-        <p id="counter-message">
-          Choose an enemy hero to see matchup results.
-        </p>
-
-        <div id="counter-results"></div>
-      </section>
-
-      <section id="hero-stats">
-        <h2>Hero Statistics by Rank</h2>
-        <p id="stats-message">
-          Hero statistics will load here.
-        </p>
-        <div id="stats-list"></div>
-      </section>
-
-      <section id="hero-roster"></section>
-
-     <section id="guide-library">
-  <h2>Counter-Pick Guides</h2>
-  <div id="hero-search-results"></div>
-  <div id="guides"></div>
-</section>
-
-    <p><a href="./index.html">← Back to homepage</a></p>
-  </main>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <script>
-    const SUPABASE_URL =
-      "https://byzcbemjfkhwgyczxpnw.supabase.co";
-
-    const SUPABASE_PUBLISHABLE_KEY =
-      "sb_publishable_JCqjOY08FpV8pwfzbFKe0Q_7oI-j01v";
-
-    const db = window.supabase.createClient(
-      SUPABASE_URL,
-      SUPABASE_PUBLISHABLE_KEY
-    );
-
-    const message = document.getElementById("message");
-    const library = document.getElementById("library");
-    const guidesContainer = document.getElementById("guides");
-
-    let allGuides = [];
-    let heroNamesById = new Map();
-
-    
-    // Load all Dota 2 heroes.
-    async function loadHeroRoster() {
-      const roster = document.getElementById("hero-roster");
-
-      roster.textContent = "Loading Dota 2 heroes...";
-
-      try {
-        const response = await fetch(
-          "https://api.opendota.com/api/heroes"
-        );
-
-        if (!response.ok) {
-          throw new Error("Unable to load heroes");
-        }
-
-        const heroes = await response.json();
-
-        heroNamesById = new Map(
-          heroes.map(hero => [
-            Number(hero.id),
-            hero.localized_name ||
-              hero.name.replace("npc_dota_hero_", "")
-          ])
-        );
-
-        populateEnemyHeroDropdown(heroes);
-
-        renderGuides();
-
-        // Create a collapsible hero roster.
-        roster.replaceChildren();
-
-        const details = document.createElement("details");
-        details.style.marginTop = "12px";
-
-        const summary = document.createElement("summary");
-        summary.textContent = `All Dota 2 Heroes (${heroes.length})`;
-        summary.style.cursor = "pointer";
-        summary.style.fontWeight = "bold";
-        summary.style.padding = "10px";
-
-        const heroList = document.createElement("div");
-        heroList.style.display = "grid";
-        heroList.style.gridTemplateColumns =
-          "repeat(auto-fill, minmax(130px, 1fr))";
-        heroList.style.gap = "8px";
-        heroList.style.marginTop = "10px";
-
-        heroes.forEach(hero => {
-          const heroCard = document.createElement("div");
-          heroCard.textContent =
-            hero.localized_name ||
-            hero.name.replace("npc_dota_hero_", "");
-
-          heroCard.style.padding = "8px";
-          heroCard.style.borderRadius = "8px";
-          heroCard.style.background = "#1e293b";
-          heroCard.style.fontSize = "13px";
-
-          heroList.appendChild(heroCard);
-        });
-
-        details.append(summary, heroList);
-        roster.appendChild(details);
-
-      } catch (error) {
-        roster.textContent =
-          "Unable to load heroes. Please refresh the page.";
-        console.error("Hero roster error:", error);
+      if (!response.ok) {
+        throw new Error("Unable to load heroes");
       }
-    }
 
+      const heroes = await response.json();
 
-    // Fill the enemy hero dropdown.
-    function populateEnemyHeroDropdown(heroes) {
-      const dropdown = document.getElementById("enemy-hero");
+      heroNamesById = new Map(
+        heroes.map(hero => [
+          Number(hero.id),
+          hero.localized_name ||
+            hero.name.replace("npc_dota_hero_", "")
+        ])
+      );
 
-      dropdown.replaceChildren();
+      populateEnemyHeroDropdown(heroes);
 
-      const placeholder = document.createElement("option");
-      placeholder.value = "";
-      placeholder.textContent = "Choose a hero";
-      dropdown.appendChild(placeholder);
+      // Refresh search after heroes have loaded.
+      renderGuides();
 
-      heroes
-        .slice()
-        .sort((a, b) =>
-          a.localized_name.localeCompare(b.localized_name)
-        )
-        .forEach(hero => {
-          const option = document.createElement("option");
-          option.value = hero.id;
-          option.textContent = hero.localized_name;
-          dropdown.appendChild(option);
-        });
+      roster.replaceChildren();
 
-      dropdown.addEventListener("change", event => {
-        loadCounterMatchups(event.target.value);
+      const details = document.createElement("details");
+      details.style.marginTop = "12px";
+
+      const summary = document.createElement("summary");
+      summary.textContent = `All Dota 2 Heroes (${heroes.length})`;
+      summary.style.cursor = "pointer";
+      summary.style.fontWeight = "bold";
+      summary.style.padding = "10px";
+
+      const heroList = document.createElement("div");
+      heroList.className = "hero-grid";
+      heroList.style.marginTop = "10px";
+
+      heroes.forEach(hero => {
+        const heroCard = document.createElement("div");
+        heroCard.className = "hero-card";
+        heroCard.textContent =
+          hero.localized_name ||
+          hero.name.replace("npc_dota_hero_", "");
+
+        heroList.appendChild(heroCard);
       });
+
+      details.append(summary, heroList);
+      roster.appendChild(details);
+    } catch (error) {
+      console.error("Hero roster error:", error);
+      roster.textContent =
+        "Unable to load heroes. Please refresh the page.";
+    }
+  }
+
+  // Populate the enemy hero dropdown.
+  function populateEnemyHeroDropdown(heroes) {
+    const dropdown = document.getElementById("enemy-hero");
+
+    dropdown.replaceChildren();
+
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Choose a hero";
+    dropdown.appendChild(placeholder);
+
+    heroes
+      .slice()
+      .sort((a, b) =>
+        a.localized_name.localeCompare(b.localized_name)
+      )
+      .forEach(hero => {
+        const option = document.createElement("option");
+        option.value = hero.id;
+        option.textContent = hero.localized_name;
+        dropdown.appendChild(option);
+      });
+  }
+
+  // Find potential counters to the selected enemy.
+  async function loadCounterMatchups(enemyHeroId) {
+    const counterMessage =
+      document.getElementById("counter-message");
+    const results =
+      document.getElementById("counter-results");
+
+    results.replaceChildren();
+
+    if (!enemyHeroId) {
+      counterMessage.textContent =
+        "Choose an enemy hero to see matchup results.";
+      return;
     }
 
-    
-    // Find potential counters to the selected enemy hero.
-    async function loadCounterMatchups(enemyHeroId) {
-      const counterMessage = document.getElementById("counter-message");
-      const results = document.getElementById("counter-results");
+    counterMessage.textContent = "Loading matchup data...";
 
-      results.replaceChildren();
+    try {
+      const response = await fetch(
+        `https://api.opendota.com/api/heroes/${Number(enemyHeroId)}/matchups`
+      );
 
-      if (!enemyHeroId) {
+      if (!response.ok) {
+        throw new Error(
+          `OpenDota returned status ${response.status}`
+        );
+      }
+
+      const matchups = await response.json();
+
+      if (!Array.isArray(matchups)) {
+        throw new Error("Unexpected matchup data format");
+      }
+
+      const counters = matchups
+        .filter(matchup =>
+          Number(matchup.games_played) >= 100 &&
+          Number(matchup.hero_id) !== Number(enemyHeroId)
+        )
+        .map(matchup => {
+          const games = Number(matchup.games_played);
+          const wins = Number(matchup.wins);
+
+          return {
+            heroId: Number(matchup.hero_id),
+            games,
+            winRate: games > 0
+              ? ((games - wins) / games) * 100
+              : 0
+          };
+        })
+        .filter(counter =>
+          Number.isFinite(counter.winRate) &&
+          Number.isFinite(counter.heroId)
+        )
+        .sort((a, b) => b.winRate - a.winRate)
+        .slice(0, 10);
+
+      if (counters.length === 0) {
         counterMessage.textContent =
-          "Choose an enemy hero to see matchup results.";
+          "No usable matchup records were found. Try another hero.";
         return;
       }
 
-      counterMessage.textContent = "Loading matchup data...";
+      const enemyName =
+        heroNamesById.get(Number(enemyHeroId)) || "Selected hero";
 
-      try {
-        const response = await fetch(
-          `https://api.opendota.com/api/heroes/${Number(enemyHeroId)}/matchups`
+      counterMessage.textContent =
+        `Potential counters against ${enemyName}. ` +
+        "Rankings use overall matchup data and are not rank-filtered.";
+
+      const summary = document.createElement("p");
+      summary.textContent =
+        `These results show heroes whose opponents had the highest ` +
+        `win rates in the available matchups against ${enemyName}. ` +
+        "Use the match count to judge how much data supports each result.";
+      results.appendChild(summary);
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "table-wrap";
+
+      const table = document.createElement("table");
+      const header = document.createElement("tr");
+
+      [
+        "Potential counter",
+        "Matches",
+        "Opponent win rate"
+      ].forEach(label => {
+        const th = document.createElement("th");
+        th.textContent = label;
+        header.appendChild(th);
+      });
+
+      table.appendChild(header);
+
+      counters.forEach(counter => {
+        const row = document.createElement("tr");
+
+        const heroCell = document.createElement("td");
+        heroCell.textContent =
+          heroNamesById.get(counter.heroId) ||
+          `Hero ${counter.heroId}`;
+
+        const gamesCell = document.createElement("td");
+        gamesCell.textContent = counter.games.toLocaleString();
+
+        const rateCell = document.createElement("td");
+        rateCell.textContent =
+          `${counter.winRate.toFixed(1)}%`;
+
+        row.append(heroCell, gamesCell, rateCell);
+        table.appendChild(row);
+      });
+
+      wrapper.appendChild(table);
+      results.appendChild(wrapper);
+    } catch (error) {
+      console.error("Counter matchup error:", error);
+      counterMessage.textContent =
+        "Unable to load matchup data. Please refresh and try again.";
+    }
+  }
+
+  // Load hero statistics by rank.
+  async function loadHeroStats() {
+    const statsMessage =
+      document.getElementById("stats-message");
+    const list = document.getElementById("stats-list");
+
+    statsMessage.textContent = "Loading hero statistics...";
+    list.replaceChildren();
+
+    try {
+      const response = await fetch(
+        "https://api.opendota.com/api/heroStats"
+      );
+
+      if (!response.ok) {
+        throw new Error("Statistics request failed");
+      }
+
+      const heroes = await response.json();
+
+      const ranks = [
+        { label: "Herald", pick: "1_pick", win: "1_win" },
+        { label: "Guardian", pick: "2_pick", win: "2_win" },
+        { label: "Crusader", pick: "3_pick", win: "3_win" },
+        { label: "Archon", pick: "4_pick", win: "4_win" },
+        { label: "Legend", pick: "5_pick", win: "5_win" },
+        { label: "Ancient", pick: "6_pick", win: "6_win" },
+        { label: "Divine", pick: "7_pick", win: "7_win" },
+        { label: "Immortal", pick: "8_pick", win: "8_win" }
+      ];
+
+      const rankSelect = document.createElement("select");
+      rankSelect.id = "stats-rank";
+      rankSelect.setAttribute(
+        "aria-label",
+        "Choose rank for hero statistics"
+      );
+
+      ranks.forEach(rank => {
+        const option = document.createElement("option");
+        option.value = rank.label;
+        option.textContent = rank.label;
+        rankSelect.appendChild(option);
+      });
+
+      list.appendChild(rankSelect);
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "table-wrap";
+
+      const table = document.createElement("table");
+      wrapper.appendChild(table);
+      list.appendChild(wrapper);
+
+      function renderStats() {
+        const rank = ranks.find(
+          item => item.label === rankSelect.value
         );
 
-        if (!response.ok) {
-          throw new Error(`OpenDota returned status ${response.status}`);
-        }
+        if (!rank) return;
 
-        const matchups = await response.json();
+        table.replaceChildren();
 
-        console.log("Selected enemy hero ID:", enemyHeroId);
-console.log("Matchup records received:", matchups.length);
-console.log("First matchup record:", matchups[0]);
-
-        if (!Array.isArray(matchups)) {
-          throw new Error("Unexpected matchup data format");
-        }
-
-        const counters = matchups
-          .filter(matchup =>
-  Number(matchup.games_played) >= 100 &&
-  Number(matchup.hero_id) !== Number(enemyHeroId)
-)
-          .map(matchup => {
-            const games = Number(matchup.games_played);
-            const wins = Number(matchup.wins);
-
-            return {
-              heroId: Number(matchup.hero_id),
-              games,
-              winRate: ((games - wins) / games) * 100
-            };
-          })
-          .filter(counter =>
-            Number.isFinite(counter.winRate) &&
-            Number.isFinite(counter.heroId)
-          )
-          .sort((a, b) => b.winRate - a.winRate)
-          .slice(0, 10);
-
-        if (counters.length === 0) {
-          counterMessage.textContent =
-            `OpenDota responded, but no usable matchup records were found. ` +
-            `Records received: ${matchups.length}. Please try another hero.`;
-          return;
-        }
-
-        counterMessage.textContent =
-          "Showing up to 10 potential counters using overall matchup data. " +
-          "Results are not filtered by rank.";
-
-        const wrapper = document.createElement("div");
-        wrapper.className = "table-wrap";
-
-        const table = document.createElement("table");
         const header = document.createElement("tr");
 
-        ["Potential counter", "Matches", "Opponent win rate"].forEach(label => {
+        ["Hero", "Matches", "Win rate"].forEach(label => {
           const th = document.createElement("th");
           th.textContent = label;
           header.appendChild(th);
@@ -402,342 +304,258 @@ console.log("First matchup record:", matchups[0]);
 
         table.appendChild(header);
 
-        counters.forEach(counter => {
+        const sorted = heroes
+          .filter(hero => Number(hero[rank.pick]) > 0)
+          .map(hero => ({
+            name: hero.localized_name,
+            picks: Number(hero[rank.pick]),
+            wins: Number(hero[rank.win])
+          }))
+          .sort((a, b) =>
+            (b.wins / b.picks) - (a.wins / a.picks)
+          );
+
+        sorted.forEach(hero => {
           const row = document.createElement("tr");
 
-          const heroCell = document.createElement("td");
-          heroCell.textContent =
-            heroNamesById.get(counter.heroId) || `Hero ${counter.heroId}`;
+          const rate =
+            (hero.wins / hero.picks * 100).toFixed(1) + "%";
 
-          const gamesCell = document.createElement("td");
-          gamesCell.textContent = counter.games.toLocaleString();
+          [
+            hero.name,
+            hero.picks.toLocaleString(),
+            rate
+          ].forEach(value => {
+            const cell = document.createElement("td");
+            cell.textContent = value;
+            row.appendChild(cell);
+          });
 
-          const rateCell = document.createElement("td");
-          rateCell.textContent = `${counter.winRate.toFixed(1)}%`;
-
-          row.append(heroCell, gamesCell, rateCell);
           table.appendChild(row);
         });
 
-        wrapper.appendChild(table);
-        results.appendChild(wrapper);
-
-      } catch (error) {
-        console.error("Counter matchup error:", error);
-        counterMessage.textContent =
-          "Unable to load matchup data. Please refresh and try again.";
-      }
-    }
-
-    // Load rank-based hero statistics.
-    async function loadHeroStats() {
-      const statsMessage =
-        document.getElementById("stats-message");
-
-      const list =
-        document.getElementById("stats-list");
-
-      statsMessage.textContent =
-        "Loading hero statistics...";
-
-      list.replaceChildren();
-
-      try {
-        const response = await fetch(
-          "https://api.opendota.com/api/heroStats"
-        );
-
-        if (!response.ok) {
-          throw new Error("Statistics request failed");
-        }
-
-        const heroes = await response.json();
-
-        const rankSelect = document.createElement("select");
-        rankSelect.id = "stats-rank";
-        rankSelect.setAttribute(
-          "aria-label",
-          "Choose rank for hero statistics"
-        );
-
-        const ranks = [
-          { label: "Herald", pick: "1_pick", win: "1_win" },
-          { label: "Guardian", pick: "2_pick", win: "2_win" },
-          { label: "Crusader", pick: "3_pick", win: "3_win" },
-          { label: "Archon", pick: "4_pick", win: "4_win" },
-          { label: "Legend", pick: "5_pick", win: "5_win" },
-          { label: "Ancient", pick: "6_pick", win: "6_win" },
-          { label: "Divine", pick: "7_pick", win: "7_win" },
-          { label: "Immortal", pick: "8_pick", win: "8_win" }
-        ];
-
-        ranks.forEach(rank => {
-          const option = document.createElement("option");
-          option.value = rank.label;
-          option.textContent = rank.label;
-          rankSelect.appendChild(option);
-        });
-
-        list.appendChild(rankSelect);
-
-        const wrapper = document.createElement("div");
-        wrapper.className = "table-wrap";
-
-        const table = document.createElement("table");
-        wrapper.appendChild(table);
-        list.appendChild(wrapper);
-
-        function renderStats() {
-          const rank = ranks.find(
-            item => item.label === rankSelect.value
-          );
-
-          table.replaceChildren();
-
-          const header = document.createElement("tr");
-
-          ["Hero", "Matches", "Win rate"].forEach(label => {
-            const th = document.createElement("th");
-            th.textContent = label;
-            header.appendChild(th);
-          });
-
-          table.appendChild(header);
-
-          const sorted = heroes
-            .filter(hero => Number(hero[rank.pick]) > 0)
-            .map(hero => ({
-              name: hero.localized_name,
-              picks: Number(hero[rank.pick]),
-              wins: Number(hero[rank.win])
-            }))
-            .sort((a, b) =>
-              (b.wins / b.picks) - (a.wins / a.picks)
-            );
-
-          sorted.forEach(hero => {
-            const row = document.createElement("tr");
-
-            const rate =
-              (hero.wins / hero.picks * 100).toFixed(1) + "%";
-
-            [hero.name, hero.picks.toLocaleString(), rate]
-              .forEach(value => {
-                const cell = document.createElement("td");
-                cell.textContent = value;
-                row.appendChild(cell);
-              });
-
-            table.appendChild(row);
-          });
-
-          statsMessage.textContent =
-            `Showing ${sorted.length} heroes for ${rank.label}, ` +
-            "sorted by win rate.";
-        }
-
-        rankSelect.addEventListener("change", renderStats);
-        renderStats();
-
-      } catch (error) {
         statsMessage.textContent =
-          "Unable to load hero statistics. Please refresh the page.";
+          `Showing ${sorted.length} heroes for ${rank.label}, ` +
+          "sorted by win rate.";
       }
+
+      rankSelect.addEventListener("change", renderStats);
+      renderStats();
+    } catch (error) {
+      console.error("Hero statistics error:", error);
+      statsMessage.textContent =
+        "Unable to load hero statistics. Please refresh the page.";
     }
+  }
 
-    // Check login and account approval before showing the library.
-    async function start() {
-      const { data: authData, error: authError } =
-        await db.auth.getUser();
+  // Check login and account approval.
+  async function start() {
+    const { data: authData, error: authError } =
+      await db.auth.getUser();
 
-      if (authError || !authData.user) {
-        message.textContent =
-          "Please log in to access the guide library.";
-        return;
-      }
-
-      const { data: profile, error: profileError } = await db
-        .from("profiles")
-        .select("status, role")
-        .eq("id", authData.user.id)
-        .single();
-
-      if (
-        profileError ||
-        !profile ||
-        (profile.status !== "approved" && profile.role !== "admin")
-      ) {
-        message.textContent =
-          "Your account is pending owner approval.";
-        return;
-      }
-
+    if (authError || !authData.user) {
       message.textContent =
-        "Welcome! Your counter-pick guides are ready.";
-
-      library.hidden = false;
-
-      // Load the hero roster and statistics.
-      loadHeroRoster();
-      loadHeroStats();
-
-      const { data, error } = await db
-        .from("hero_guides")
-        .select(
-          "id, hero_name, lane, rank_bracket, counter_hero, reason, patch"
-        )
-        .order("hero_name");
-
-      if (error) {
-        message.textContent =
-          "We couldn't load the guides. Please try again later.";
-        return;
-      }
-
-      allGuides = data || [];
-      renderGuides();
+        "Please log in to access the guide library.";
+      return;
     }
 
-    
+    const { data: profile, error: profileError } = await db
+      .from("profiles")
+      .select("status, role")
+      .eq("id", authData.user.id)
+      .single();
 
-function renderGuides() {
-  const query = document.getElementById("search").value
-    .trim()
-    .toLowerCase();
+    if (
+      profileError ||
+      !profile ||
+      (profile.status !== "approved" && profile.role !== "admin")
+    ) {
+      message.textContent =
+        "Your account is pending owner approval.";
+      return;
+    }
 
-  const lane = document.getElementById("lane").value;
-  const rank = document.getElementById("rank").value;
+    message.textContent =
+      "Welcome! Your counter-pick guides are ready.";
 
-  // Search saved guides.
-  const filtered = allGuides.filter(guide => {
-    const text = [
-      guide.hero_name,
-      guide.counter_hero,
-      guide.reason,
-      guide.rank_bracket,
-      guide.patch
-    ]
-      .filter(Boolean)
-      .join(" ")
+    library.hidden = false;
+
+    // Load heroes and statistics.
+    loadHeroRoster();
+    loadHeroStats();
+
+    // Load saved guides once.
+    const { data, error } = await db
+      .from("hero_guides")
+      .select(
+        "id, hero_name, lane, rank_bracket, counter_hero, reason, patch"
+      )
+      .order("hero_name");
+
+    if (error) {
+      console.error("Guide loading error:", error);
+      message.textContent =
+        "We couldn't load the guides. Please try again later.";
+      return;
+    }
+
+    allGuides = data || [];
+    renderGuides();
+  }
+
+  // Search saved guides and all Dota 2 heroes.
+  function renderGuides() {
+    const query = document.getElementById("search").value
+      .trim()
       .toLowerCase();
 
-    return (
-      text.includes(query) &&
-      (!lane ||
-        (guide.lane || "").toLowerCase() === lane.toLowerCase()) &&
-      (!rank ||
-        (guide.rank_bracket || "").toLowerCase() === rank.toLowerCase())
-    );
-  });
+    const lane = document.getElementById("lane").value;
+    const rank = document.getElementById("rank").value;
 
-  // Search all heroes loaded from OpenDota.
-  const heroMatches = query
-    ? [...heroNamesById.entries()].filter(([id, name]) =>
-        name.toLowerCase().includes(query)
-      )
-    : [];
+    // Clear both containers before rendering.
+    heroSearchResults.replaceChildren();
+    guidesContainer.replaceChildren();
 
-  const heroSearchResults = document.getElementById("hero-search-results");
-heroSearchResults.replaceChildren();
-
-  // Display matching saved guides.
-  filtered.forEach(guide => {
-    const card = document.createElement("article");
-    card.className = "guide";
-
-    const title = document.createElement("h2");
-    title.textContent = guide.hero_name;
-
-    const counter = document.createElement("p");
-    counter.textContent = "Counter pick: " + guide.counter_hero;
-
-    const details = document.createElement("p");
-    details.textContent =
-      guide.reason || "No explanation added yet.";
-
-    card.append(title, counter, details);
-
-    if (guide.lane || guide.rank_bracket || guide.patch) {
-      const tag = document.createElement("span");
-      tag.className = "tag";
-      tag.textContent = [
-        guide.lane,
+    // Filter saved guides.
+    const filtered = allGuides.filter(guide => {
+      const text = [
+        guide.hero_name,
+        guide.counter_hero,
+        guide.reason,
         guide.rank_bracket,
-        guide.patch ? "Patch " + guide.patch : null
-      ].filter(Boolean).join(" • ");
+        guide.patch
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
 
-      card.append(tag);
-    }
+      return (
+        text.includes(query) &&
+        (!lane ||
+          (guide.lane || "").toLowerCase() === lane.toLowerCase()) &&
+        (!rank ||
+          (guide.rank_bracket || "").toLowerCase() === rank.toLowerCase())
+      );
+    });
 
-    guidesContainer.appendChild(card);
-  });
+    // Search the complete hero roster.
+    const heroMatches = query
+      ? [...heroNamesById.entries()].filter(([id, name]) =>
+          name.toLowerCase().includes(query)
+        )
+      : [];
 
-  // Display matching heroes in compact cards.
-  if (heroMatches.length > 0) {
-    const heading = document.createElement("h2");
-    heading.textContent = `Matching Heroes (${heroMatches.length})`;
-    heroSearchResults.appendChild(heading);
+    // Show matching heroes in the dedicated search area.
+    if (query && heroMatches.length > 0) {
+      const heading = document.createElement("h2");
+      heading.textContent =
+        `Matching Heroes (${heroMatches.length})`;
+      heroSearchResults.appendChild(heading);
 
-    const heroList = document.createElement("div");
-    heroList.style.display = "grid";
-    heroList.style.gridTemplateColumns =
-      "repeat(auto-fill, minmax(150px, 1fr))";
-    heroList.style.gap = "8px";
+      const heroList = document.createElement("div");
+      heroList.style.display = "grid";
+      heroList.style.gridTemplateColumns =
+        "repeat(auto-fill, minmax(150px, 1fr))";
+      heroList.style.gap = "8px";
 
-    heroMatches.forEach(([heroId, heroName]) => {
-      const card = document.createElement("article");
-      card.className = "guide";
-      card.style.padding = "10px";
+      heroMatches.forEach(([heroId, heroName]) => {
+        const card = document.createElement("article");
+        card.className = "guide";
+        card.style.padding = "10px";
 
-      const title = document.createElement("strong");
-      title.textContent = heroName;
+        const title = document.createElement("strong");
+        title.textContent = heroName;
 
-      const button = document.createElement("button");
-      button.textContent = "Find Counters";
-      button.style.marginTop = "8px";
+        const button = document.createElement("button");
+        button.textContent = "Find Counters";
+        button.style.display = "block";
+        button.style.marginTop = "8px";
 
-      button.addEventListener("click", () => {
-        const dropdown = document.getElementById("enemy-hero");
+        button.addEventListener("click", () => {
+          const dropdown = document.getElementById("enemy-hero");
 
-        if (dropdown) {
-          dropdown.value = String(heroId);
-          loadCounterMatchups(heroId);
-        }
+          if (dropdown) {
+            dropdown.value = String(heroId);
+            loadCounterMatchups(heroId);
+
+            document.getElementById("counter-finder")
+              .scrollIntoView({
+                behavior: "smooth",
+                block: "start"
+              });
+          }
+        });
+
+        card.append(title, button);
+        heroList.appendChild(card);
       });
 
-      card.append(title, button);
-      heroList.appendChild(card);
+      heroSearchResults.appendChild(heroList);
+    }
+
+    // Show saved guides only once.
+    filtered.forEach(guide => {
+      const card = document.createElement("article");
+      card.className = "guide";
+
+      const title = document.createElement("h2");
+      title.textContent = guide.hero_name;
+
+      const counter = document.createElement("p");
+      counter.textContent =
+        "Counter pick: " + guide.counter_hero;
+
+      const details = document.createElement("p");
+      details.textContent =
+        guide.reason || "No explanation added yet.";
+
+      card.append(title, counter, details);
+
+      if (guide.lane || guide.rank_bracket || guide.patch) {
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = [
+          guide.lane,
+          guide.rank_bracket,
+          guide.patch ? "Patch " + guide.patch : null
+        ].filter(Boolean).join(" • ");
+
+        card.appendChild(tag);
+      }
+
+      guidesContainer.appendChild(card);
     });
 
-    heroSearchResults.appendChild(heroList);
+    // Display a useful message if nothing matched.
+    if (query && heroMatches.length === 0 && filtered.length === 0) {
+      const notice = document.createElement("p");
+      notice.textContent =
+        `No saved guides or heroes found for "${query}".`;
+      heroSearchResults.appendChild(notice);
+    }
+
+    if (!query && filtered.length === 0) {
+      const notice = document.createElement("p");
+      notice.textContent =
+        "No guides match the selected filters.";
+      guidesContainer.appendChild(notice);
+    }
   }
 
-  // Show a message when nothing matches.
-  if (filtered.length === 0 && heroMatches.length === 0) {
-    const notice = document.createElement("p");
+  // Connect search and filters.
+  document.getElementById("search")
+    .addEventListener("input", renderGuides);
 
-    notice.textContent = query
-      ? `No saved guides or heroes found for "${query}".`
-      : "No guides match the selected filters.";
+  document.getElementById("rank")
+    .addEventListener("change", renderGuides);
 
-    heroSearchResults.appendChild(notice);
-  }
-}
+  document.getElementById("lane")
+    .addEventListener("change", renderGuides);
 
-
-    document.getElementById("search")
-      .addEventListener("input", renderGuides);
-
-    document.getElementById("rank")
-      .addEventListener("change", renderGuides);
-
-    document.getElementById("lane")
-      .addEventListener("change", renderGuides);
-
-    start().catch(() => {
-      message.textContent =
-        "Something went wrong while checking your account.";
-    });
-  </script>
-</body>
-</html>
+  // Run the application.
+  start().catch(error => {
+    console.error("Startup error:", error);
+    message.textContent =
+      "Something went wrong while checking your account.";
+  });
+</script>
